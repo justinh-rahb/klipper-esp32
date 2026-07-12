@@ -13,6 +13,17 @@
 #include "irq.h"      // irq_disable
 #include "command.h"        // DECL_COMMAND_FLAGS
 #include "esp_system.h"
+#include "sched.h"          // sched_is_shutdown
+
+DECL_CONSTANT_STR("MCU", "esp32c3");
 
 void command_reset(uint32_t *args) { esp_restart(); }
 DECL_COMMAND_FLAGS(command_reset, HF_IN_SHUTDOWN, "reset");
+
+void command_config_reset(uint32_t *args)
+{
+  if (!sched_is_shutdown())
+    shutdown("config_reset only available when shutdown");
+  esp_restart();
+}
+DECL_COMMAND_FLAGS(command_config_reset, HF_IN_SHUTDOWN, "config_reset");

@@ -1,0 +1,10 @@
+# Safe ESP32-C3 development-board profile.
+# No Panda Breath physical pins or heater/fan code are initialized.
+CONFIG_KLIPPER_CONSOLE_USB_CDC=y
+# CONFIG_KLIPPER_CONSOLE_UART is not set
+# CONFIG_PANDA_BREATH_HARDWARE is not set
+# CONFIG_PANDA_BREATH_LEGACY_FAN is not set
+CONFIG_KLIPPER_RMT_NEOPIXEL=y
+
+# Used as the USB driver's transmit buffer size as well.
+CONFIG_KLIPPER_UART_TX_BUFFER_SIZE=256

@@ -9,45 +9,41 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-#include "command.h"   // DECL_CONSTANT_STR, DECL_COMMAND_FLAGS, shutdown
 #include "internal.h"  // console_setup
-#include "sched.h"     // sched_main, sched_is_shutdown
+#include "safety.h"    // panda_safety_early_init
+#include "sched.h"     // sched_main
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_task_wdt.h"
 
 // Declare the fan init function from board/fan.c
 void fan_init(void);
 
-// MCU identifier reported to Klipper host during dictionary negotiation
-DECL_CONSTANT_STR("MCU", "esp32c3");
-
-// Allow the Klipper host to reset the MCU (only valid when already shutdown)
-void command_config_reset(uint32_t *args)
-{
-    if (!sched_is_shutdown())
-        shutdown("config_reset only available when shutdown");
-    esp_restart();
-}
-DECL_COMMAND_FLAGS(command_config_reset, HF_IN_SHUTDOWN, "config_reset");
-
 static void main_task(void *pvparameters)
 {
+    // A stalled Klipper scheduler must reset the MCU, returning the relay to
+    // its hardware-pulldown boot state. irq_wait() feeds this watchdog.
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+
     // Start internal TRIAC fan control before Klipper scheduler.
     // The fan monitors the heater relay GPIO and runs a phase-angle duty
     // cycle via the zero-crossing detector — entirely invisible to Klipper.
+#if defined(CONFIG_PANDA_BREATH_HARDWARE) && \
+    defined(CONFIG_PANDA_BREATH_LEGACY_FAN)
     fan_init();
+#endif
 
     console_setup(NULL);
 
-    for (;;) {
-        sched_main();
-    }
+    sched_main();
 
     vTaskDelete(NULL);
 }
 
 void app_main(void)
 {
+    panda_safety_early_init();
+
     // ESP32-C3 is single-core; pinToCore=0 is the only valid option
-    xTaskCreatePinnedToCore(main_task, "main_task", 4096, NULL, 20, NULL, 0);
+    xTaskCreatePinnedToCore(main_task, "main_task", 16384, NULL, 20, NULL, 0);
 }

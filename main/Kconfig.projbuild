@@ -1,4 +1,31 @@
 menu "Klipper Firmware Configuration"
+
+    menu "Panda Breath Hardware Safety"
+        config PANDA_BREATH_HARDWARE
+            bool "Enable Panda Breath physical pin mapping"
+            default n
+            help
+                Enable only when flashing the real Panda Breath controller.
+                The heater relay remains firmware-locked off until the local
+                PTC and airflow safety interlocks are implemented and tested.
+
+        config PANDA_BREATH_LEGACY_FAN
+            bool "Enable experimental legacy TRIAC fan driver"
+            default n
+            depends on PANDA_BREATH_HARDWARE
+            help
+                The current esp_timer based fan implementation is retained for
+                reference but is not considered safe for powered operation.
+
+        config KLIPPER_RMT_NEOPIXEL
+            bool "Enable ESP32-C3 RMT NeoPixel commands"
+            default n
+            depends on !PANDA_BREATH_HARDWARE
+            help
+                Expose Klipper's standard NeoPixel command protocol using the
+                ESP32-C3 RMT peripheral. Intended for harmless development
+                board testing; excluded from the Panda hardware profile.
+    endmenu
     
     comment "Micro-controller Architecture Selection"
     

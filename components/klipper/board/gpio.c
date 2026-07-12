@@ -10,6 +10,7 @@
 
 #include "gpio.h" // gpio_out_setup
 #include "irq.h"  // irq_save
+#include "safety.h"
 #include "command.h"    // shutdown
 #include "esp_log.h"
 #include "hal/gpio_ll.h"
@@ -59,13 +60,17 @@ void gpio_out_reset(struct gpio_out g, uint32_t val) {
 }
 
 void gpio_out_toggle_noirq(struct gpio_out g) {
-
   gpio_out_write(g, !g.line->state);
 }
 
 void gpio_out_toggle(struct gpio_out g) { gpio_out_toggle_noirq(g); }
 
 void gpio_out_write(struct gpio_out g, uint32_t val) {
+  if (panda_safety_handles_pin(g.line->pin)) {
+    panda_safety_write(val);
+    g.line->state = panda_safety_read();
+    return;
+  }
   gpio_ll_set_level(hw, g.line->pin, val);
   g.line->state = !!val;
 }

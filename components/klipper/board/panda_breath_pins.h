@@ -60,7 +60,8 @@
 #define GPIO_NTC_CHAMBER    0   // TH0 — INFERRED from module pad 12, continuity test recommended
 
 // PTC heater element NTC thermistor (TH1, module pad 13 = GPIO1 = ADC1_CH1)
-// Used internally for PTC overheat detection — NOT exposed to Klipper.
+// Reserved for firmware-local overheat protection and also exposed to Klipper
+// as a diagnostic, defense-in-depth temperature sensor.
 #define GPIO_NTC_PTC        1   // TH1 — INFERRED from module pad 13, continuity test recommended
 
 // PTC relay drive (RLY_MOSFET, module pad 26 = GPIO18)

@@ -78,12 +78,12 @@ static const adc_mapping_t adc_lookup[] = {
 // #define ADC_TEMPERATURE_PIN 0xfe
 // DECL_ENUMERATION("pin", "ADC_TEMPERATURE", ADC_TEMPERATURE_PIN);
 
-static adc_mapping_t *adc_serach(uint32_t pin)
+static const adc_mapping_t *adc_search(uint32_t pin)
 {
 
   for (size_t i = 0; i < (sizeof(adc_lookup) / sizeof((adc_lookup)[0])); i++)
   {
-    adc_mapping_t *adc = &adc_lookup[i];
+    const adc_mapping_t *adc = &adc_lookup[i];
     if (adc->pin == pin)
     {
       return adc;
@@ -96,7 +96,7 @@ adc_oneshot_unit_handle_t adc_handles[2] = {NULL};
 
 struct gpio_adc gpio_adc_setup(uint32_t pin)
 {
-  const adc_mapping_t *adc = adc_serach(pin);
+  const adc_mapping_t *adc = adc_search(pin);
   if (adc == NULL)
   {
     shutdown("Not a valid ADC pin");

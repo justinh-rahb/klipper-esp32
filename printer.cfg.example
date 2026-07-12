@@ -1,17 +1,23 @@
 # Panda Breath — Klipper configuration (Pathway 3: KlipperMCU firmware)
 #
+# SAFETY STATUS: the current firmware intentionally rejects heater-on commands.
+# This configuration documents the intended final interface; it is not an
+# authorization to power the heater before the local PTC/fan interlocks pass
+# the hardware validation plan.
+#
 # Prerequisites:
 #   1. Flash klipper-firmware/ to the Panda Breath over USB-C:
 #        cd klipper-firmware
-#        idf.py set-target esp32c3
-#        idf.py build
-#        idf.py -p /dev/cu.wchusbserial* flash
-#   2. Copy the generated klipper.dict to the Klipper host:
-#        scp components/klipper/klipper/out/klipper.dict lava@<u1-ip>:~/
-#   3. Connect Panda Breath USB-C to a USB-A port on the Snapmaker U1.
-#   4. Find the device path on the U1:
+#        ./build.sh panda
+#        idf.py -B build-panda -p /dev/cu.wchusbserial* flash
+#      This profile still locks the relay off; do not flash an unlocked build.
+#   2. Connect Panda Breath USB-C to a USB-A port on the Snapmaker U1.
+#   3. Find the device path on the U1:
 #        ls /dev/ttyUSB*
-#   5. Set serial: below to the correct path.
+#   4. Set serial: below to the correct path.
+#
+# The protocol dictionary is embedded in the image and fetched automatically
+# during Klipper identify. No klipper.dict file is copied to the host.
 #
 # GPIO pin notes:
 #   GPIO assignments inferred from ESP32-C3-MINI-1 module datasheet pad layout.
@@ -22,31 +28,31 @@
 [mcu panda_breath]
 serial: /dev/ttyUSB0    # adjust if needed; check with: ls /dev/ttyUSB*
 
-# Chamber heater — PTC element switched by relay (on/off only).
-# Klipper's PID loop duty-cycles the relay for temperature regulation,
-# matching the same approach used by the OEM firmware.
+# Chamber heater — PTC element switched by relay (on/off only). Start with
+# watermark control; PID's default 100ms software-PWM cycle is not appropriate
+# until the relay's permissible switching rate is confirmed.
 [heater_generic chamber]
 heater_pin: panda_breath:gpio18         # GPIO_RELAY (module pad 26) — inferred, continuity test recommended
 sensor_type: NTC 100K beta 3950
 sensor_pin: panda_breath:gpio0           # GPIO_NTC_CHAMBER (module pad 12) — inferred, continuity test recommended
-control: pid
-pid_kp: 10
-pid_ki: 0.1
-pid_kd: 100
-min_temp: 0
-max_temp: 60                            # Panda Breath rated max chamber temp
+pullup_resistor: 33000                   # PCB divider is 33K, not Klipper's 4.7K default
+control: watermark
+max_delta: 1.0
+min_temp: 5
+max_temp: 70                            # safety headroom; user targets must remain <=60C
+
+# Independent host-visible PTC element sensor. Firmware-local protection must
+# still operate without Klippy; this sensor is diagnostic and defense-in-depth.
+[temperature_sensor panda_breath_ptc]
+sensor_type: NTC 100K beta 3950
+sensor_pin: panda_breath:gpio1
+pullup_resistor: 33000
+min_temp: 5
+max_temp: 120                           # provisional range; calibrate before powered tests
 
 # Klipper thermal safety — required when using heater_generic
 [verify_heater chamber]
-max_error: 200
+max_error: 120
 check_gain_time: 300    # chamber heats slowly; allow 5 min to reach target
 hysteresis: 5
 heating_gain: 1
-
-# Optional: expose chamber temp as a named temperature sensor for dashboards
-# (Remove if heater_generic above already appears in your UI)
-# [temperature_sensor panda_breath_chamber]
-# sensor_type: NTC 100K beta 3950
-# sensor_pin: panda_breath:gpio0
-# min_temp: 0
-# max_temp: 70

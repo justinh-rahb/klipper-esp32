@@ -96,64 +96,25 @@
 #define CONFIG_HAVE_BOOTLOADER_REQUEST 0
 #endif
 
-// ========================================================================
-// ESP32 Console Configuration (from Kconfig.projbuild)
-// ========================================================================
-
-// Console type selection based on ESP-IDF configuration
-#ifdef CONFIG_KLIPPER_CONSOLE_UART
-#define CONFIG_CONSOLE_UART 1
+// generic/serial_irq.c publishes this value in the MCU dictionary. USB does
+// not use a physical baud rate, but Klipper still requires the constant.
+#ifndef CONFIG_SERIAL_BAUD
+#ifdef CONFIG_KLIPPER_UART_BAUD_RATE
+#define CONFIG_SERIAL_BAUD CONFIG_KLIPPER_UART_BAUD_RATE
 #else
-#define CONFIG_CONSOLE_UART 0
+#define CONFIG_SERIAL_BAUD 250000
+#endif
 #endif
 
-#ifdef CONFIG_KLIPPER_CONSOLE_USB_CDC
-#define CONFIG_CONSOLE_USB_CDC 1
-#else
-#define CONFIG_CONSOLE_USB_CDC 0
-#endif
-
-// UART Console Configuration (from ESP-IDF Kconfig)
-#ifdef CONFIG_KLIPPER_CONSOLE_UART
-#define CONFIG_UART_NUM                 CONFIG_KLIPPER_UART_NUM
-#define CONFIG_UART_BAUD_RATE          CONFIG_KLIPPER_UART_BAUD_RATE
-#define CONFIG_UART_TX_PIN             CONFIG_KLIPPER_UART_TX_PIN
-#define CONFIG_UART_RX_PIN             CONFIG_KLIPPER_UART_RX_PIN
-
-// Handle optional pins (-1 means not used)
-#if CONFIG_KLIPPER_UART_RTS_PIN >= 0
-#define CONFIG_UART_RTS_PIN            CONFIG_KLIPPER_UART_RTS_PIN
-#else
-#define CONFIG_UART_RTS_PIN            UART_PIN_NO_CHANGE
-#endif
-
-#if CONFIG_KLIPPER_UART_CTS_PIN >= 0
-#define CONFIG_UART_CTS_PIN            CONFIG_KLIPPER_UART_CTS_PIN
-#else
-#define CONFIG_UART_CTS_PIN            UART_PIN_NO_CHANGE
-#endif
-
-#define CONFIG_UART_TX_BUFFER_SIZE     CONFIG_KLIPPER_UART_TX_BUFFER_SIZE
-#define CONFIG_UART_RX_BUFFER_SIZE     CONFIG_KLIPPER_UART_RX_BUFFER_SIZE
-#endif
-
-// Console buffer configuration
-#define CONFIG_CONSOLE_RX_BUFFER_SIZE  CONFIG_KLIPPER_CONSOLE_RX_BUFFER_SIZE
-
-// Auto-detect USB CDC availability (read-only)
-#ifdef CONFIG_SOC_USB_SERIAL_JTAG_SUPPORTED
-#define CONFIG_USB_CDC_AVAILABLE 1
-#else
-#define CONFIG_USB_CDC_AVAILABLE 0
-#endif
-
-// Validation: Ensure at least one console type is configured
-#if !CONFIG_CONSOLE_UART && !CONFIG_CONSOLE_USB_CDC
+// Validate the project-owned console selection without aliasing ESP-IDF's
+// CONFIG_CONSOLE_UART symbol (which caused pervasive macro redefinitions).
+#if !defined(CONFIG_KLIPPER_CONSOLE_UART) && \
+    !defined(CONFIG_KLIPPER_CONSOLE_USB_CDC)
 #error "No console type configured. Enable either UART or USB CDC console in menuconfig."
 #endif
 
-// Validation: USB CDC console requires USB support
-#if CONFIG_CONSOLE_USB_CDC && !CONFIG_USB_CDC_AVAILABLE
+#if defined(CONFIG_KLIPPER_CONSOLE_USB_CDC) && \
+    !defined(CONFIG_SOC_USB_SERIAL_JTAG_SUPPORTED)
 #error "USB CDC console selected but SOC doesn't support USB. Use UART console instead."
 #endif
 

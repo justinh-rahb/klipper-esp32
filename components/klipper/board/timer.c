@@ -11,6 +11,7 @@
 #include "command.h"         // DECL_SHUTDOWN
 #include "driver/gptimer.h"
 #include "esp_log.h"
+#include "esp_task_wdt.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -28,9 +29,8 @@
 static const char* TAG = "timer";
 
 static gptimer_handle_t gptimer = NULL;
-static volatile uint64_t timer_high = 0;
-static volatile uint32_t last_timer_read = 0;
 static portMUX_TYPE timer_spinlock = portMUX_INITIALIZER_UNLOCKED;
+static TaskHandle_t klipper_task = NULL;
 
 // Timer state tracking
 static struct {
@@ -38,28 +38,24 @@ static struct {
     uint32_t next_wake_time;
 } TimerInfo;
 
-// Return the current time (in absolute clock ticks).
+// Return the lower 32 bits of the continuously-running hardware counter.
+// Klipper's timer comparisons deliberately handle this value wrapping.
 uint32_t timer_read_time(void) {
     uint64_t count;
-    uint32_t current_time;
-    
-    // Use spinlock for atomic access to timer state
-    portENTER_CRITICAL(&timer_spinlock);
-    
     ESP_ERROR_CHECK(gptimer_get_raw_count(gptimer, &count));
-    
-    // Check for timer wrap-around (ESP32 timer is 64-bit but we use 32-bit interface)
-    if ((uint32_t)count < last_timer_read) {
-        timer_high += 0x100000000ULL;
-    }
-    last_timer_read = (uint32_t)count;
-    
-    // Combine high and low parts for 32-bit result
-    current_time = (uint32_t)((timer_high + count) & 0xFFFFFFFF);
-    
-    portEXIT_CRITICAL(&timer_spinlock);
-    
-    return current_time;
+    return (uint32_t)count;
+}
+
+// Map a wrapping 32-bit Klipper timestamp to the next matching 64-bit
+// hardware count.  Passing the wrapped value directly to GPTimer would put
+// alarms in the past after approximately 71 minutes.
+static uint64_t alarm_count_for(uint32_t next) {
+    uint64_t now;
+    ESP_ERROR_CHECK(gptimer_get_raw_count(gptimer, &now));
+    uint64_t candidate = (now & 0xFFFFFFFF00000000ULL) | (uint64_t)next;
+    if (candidate <= now)
+        candidate += 0x100000000ULL;
+    return candidate;
 }
 
 // Set timer for next interrupt
@@ -67,18 +63,12 @@ void timer_set(uint32_t next) {
     portENTER_CRITICAL(&timer_spinlock);
     
     gptimer_alarm_config_t alarm_config = {
-        .alarm_count = next,
+        .alarm_count = alarm_count_for(next),
         .reload_count = 0,
         .flags.auto_reload_on_alarm = false
     };
     
     ESP_ERROR_CHECK(gptimer_set_alarm_action(gptimer, &alarm_config));
-    
-    // Only start if not already running
-    esp_err_t err = gptimer_start(gptimer);
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-        ESP_ERROR_CHECK(err);
-    }
     
     TimerInfo.next_wake_time = next;
     
@@ -101,17 +91,19 @@ static bool IRAM_ATTR timer_irq_handler(
 
     BaseType_t high_task_awoken = pdFALSE;
     
-    // Stop the current timer
-    gptimer_stop(timer);
-    
-    // Signal that timer dispatch is needed
+    // The counter must continue running while task-context dispatch catches up.
     TimerInfo.must_dispatch = 1;
+
+    if (klipper_task)
+        vTaskNotifyGiveFromISR(klipper_task, &high_task_awoken);
     
     return (high_task_awoken == pdTRUE);
 }
 
 void timer_init(void) {
     ESP_LOGI(TAG, "Initializing timer with frequency %d Hz", CONFIG_CLOCK_FREQ);
+
+    klipper_task = xTaskGetCurrentTaskHandle();
     
     portENTER_CRITICAL(&timer_spinlock);
     
@@ -132,12 +124,10 @@ void timer_init(void) {
     // Initialize timer state
     TimerInfo.must_dispatch = 0;
     TimerInfo.next_wake_time = 0;
-    timer_high = 0;
-    last_timer_read = 0;
-    
     portEXIT_CRITICAL(&timer_spinlock);
     
     timer_kick();
+    ESP_ERROR_CHECK(gptimer_start(gptimer));
     
     ESP_LOGI(TAG, "Timer initialized successfully");
 }
@@ -193,17 +183,22 @@ void irq_restore(irqstatus_t flag) {
 }
 
 void irq_wait(void) {
-    // Yield to allow other tasks to run and check for console activity
-    extern void console_kick(void);
-    console_kick();
-    
-    // Small delay to prevent busy waiting
-    vTaskDelay(pdMS_TO_TICKS(1));
+    // Klipper enters irq_wait() with this critical section held.  Release it
+    // before blocking so the GPTimer ISR and FreeRTOS scheduler can run.
+    portEXIT_CRITICAL(&global_irq_spinlock);
+
+    irq_poll();
+    esp_task_wdt_reset();
+    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(5));
+
+    // sched.c expects interrupts disabled again when irq_wait() returns.
+    portENTER_CRITICAL(&global_irq_spinlock);
 }
 
 void irq_poll(void) { 
     timer_dispatch(); 
 }
+DECL_TASK(irq_poll);
 
 void clear_active_irq(void) {
     portENTER_CRITICAL(&timer_spinlock);
