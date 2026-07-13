@@ -32,9 +32,9 @@ serial: /dev/ttyUSB0    # adjust if needed; check with: ls /dev/ttyUSB*
 # watermark control; PID's default 100ms software-PWM cycle is not appropriate
 # until the relay's permissible switching rate is confirmed.
 [heater_generic chamber]
-heater_pin: panda_breath:gpio18         # GPIO_RELAY (module pad 26) — inferred, continuity test recommended
+heater_pin: panda_breath:GPIO_NUM_18    # GPIO_RELAY (module pad 26) — inferred, continuity test recommended
 sensor_type: NTC 100K beta 3950
-sensor_pin: panda_breath:gpio0           # GPIO_NTC_CHAMBER (module pad 12) — inferred, continuity test recommended
+sensor_pin: panda_breath:GPIO_NUM_0      # GPIO_NTC_CHAMBER (module pad 12) — inferred, continuity test recommended
 pullup_resistor: 33000                   # PCB divider is 33K, not Klipper's 4.7K default
 control: watermark
 max_delta: 1.0
@@ -45,7 +45,7 @@ max_temp: 70                            # safety headroom; user targets must rem
 # still operate without Klippy; this sensor is diagnostic and defense-in-depth.
 [temperature_sensor panda_breath_ptc]
 sensor_type: NTC 100K beta 3950
-sensor_pin: panda_breath:gpio1
+sensor_pin: panda_breath:GPIO_NUM_1
 pullup_resistor: 33000
 min_temp: 5
 max_temp: 120                           # provisional range; calibrate before powered tests

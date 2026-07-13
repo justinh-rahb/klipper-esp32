@@ -4,6 +4,11 @@ Experimental ESP32-C3 firmware that implements the subset of Klipper's MCU
 protocol needed for a chamber heater: base commands, scheduled digital output,
 and ADC sampling.
 
+The `dev` profile is hardware-validated as a Linux/Kalico secondary MCU,
+including clock synchronization, watchdog continuity, and a physical GPIO8
+WS2812 driven through standard Klipper NeoPixel commands. The real Panda Breath
+profile remains experimental and cannot energize its heater.
+
 ## Current safety state
 
 The firmware builds in two profiles:
@@ -91,8 +96,12 @@ python3 probe_mcu.py /dev/cu.usbmodemXXXX
 The probe performs Klipper identify, uptime, clock, and configuration queries,
 then holds the connection idle long enough to catch a task-watchdog reset. On
 native USB it allows one second for the board's automatic open/reset cycle.
-It never configures GPIOs or sends output commands.
+By default it never configures GPIOs or sends output commands. Passing
+`--neopixel-pin 8` additionally performs the dev-only RMT NeoPixel test.
 
 Use `dev-printer.cfg.example` for a full protocol-only Klippy connection test
 from a Linux Klipper host. Klipper's host C helper is Linux-specific, so that
 full test cannot run directly on macOS.
+
+ESP32-C3 pin names are dictionary enumerations such as `GPIO_NUM_8`; lowercase
+names such as `gpio8` are not accepted by this firmware.
