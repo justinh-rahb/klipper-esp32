@@ -7,7 +7,8 @@
 #include "autoconf.h"        // CONFIG_CLOCK_FREQ  
 #include "board/irq.h"       // irq_disable
 #include "board/misc.h"      // timer_read_time
-#include "board/timer_irq.h" // timer_dispatch_many
+#include "board/timer_irq.h"  // timer_dispatch_many
+#include "board/timer_math.h" // timer_alarm_count_for
 #include "command.h"         // DECL_SHUTDOWN
 #include "driver/gptimer.h"
 #include "esp_log.h"
@@ -46,16 +47,13 @@ uint32_t timer_read_time(void) {
     return (uint32_t)count;
 }
 
-// Map a wrapping 32-bit Klipper timestamp to the next matching 64-bit
-// hardware count.  Passing the wrapped value directly to GPTimer would put
-// alarms in the past after approximately 71 minutes.
+// Map a wrapping 32-bit Klipper timestamp to the matching 64-bit hardware
+// count. Overdue timestamps must remain imminent instead of being moved one
+// complete 32-bit epoch (approximately 71 minutes) into the future.
 static uint64_t alarm_count_for(uint32_t next) {
     uint64_t now;
     ESP_ERROR_CHECK(gptimer_get_raw_count(gptimer, &now));
-    uint64_t candidate = (now & 0xFFFFFFFF00000000ULL) | (uint64_t)next;
-    if (candidate <= now)
-        candidate += 0x100000000ULL;
-    return candidate;
+    return timer_alarm_count_for(now, next);
 }
 
 // Set timer for next interrupt

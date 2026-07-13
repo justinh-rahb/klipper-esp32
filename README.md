@@ -9,6 +9,16 @@ including clock synchronization, watchdog continuity, and a physical GPIO8
 WS2812 driven through standard Klipper NeoPixel commands. The real Panda Breath
 profile remains experimental and cannot energize its heater.
 
+The 64-bit GPTimer bridge uses signed 32-bit Klipper clock deltas. A timestamp
+that is slightly overdue is clamped to an imminent alarm instead of being
+misread as the next 32-bit epoch (a 71.6-minute delay at 1 MHz). Host tests cover
+ordinary late alarms and future/overdue timestamps on both sides of rollover:
+
+```sh
+cd klipper-firmware
+sh tests/run_timer_math_test.sh
+```
+
 ## Current safety state
 
 The firmware builds in two profiles:
