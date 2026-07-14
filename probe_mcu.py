@@ -19,13 +19,14 @@ sys.path.insert(0, str(KLIPPER_KLIPPY))
 import msgproto  # noqa: E402
 
 
-def read_packet(port, parser, deadline):
-    data = bytearray()
+def read_packet(port, parser, deadline, data):
     while time.monotonic() < deadline:
         data.extend(port.read(256))
         while data:
             packet_len = parser.check_packet(data)
             if packet_len > 0:
+                # Keep any following frame buffered. Klipper's five-second
+                # stats message can share a USB read with a requested reply.
                 packet = bytes(data[:packet_len])
                 del data[:packet_len]
                 return packet
@@ -37,7 +38,7 @@ def read_packet(port, parser, deadline):
     raise TimeoutError("timed out waiting for a valid Klipper packet")
 
 
-def identify(port, timeout):
+def identify(port, timeout, receive_buffer):
     parser = msgproto.MessageParser()
     command = parser.lookup_command("identify offset=%u count=%c")
     output = bytearray()
@@ -54,7 +55,7 @@ def identify(port, timeout):
         port.write(bytes(packet))
 
         while True:
-            response = read_packet(port, parser, deadline)
+            response = read_packet(port, parser, deadline, receive_buffer)
             # Empty packets are acknowledgements. The response packet follows.
             if len(response) == msgproto.MESSAGE_MIN:
                 continue
@@ -83,14 +84,21 @@ def frame(parser, sequence, payload):
 
 
 def request(
-    port, parser, sequence, command_format, response_name, timeout, **params
+    port,
+    parser,
+    sequence,
+    command_format,
+    response_name,
+    timeout,
+    receive_buffer,
+    **params,
 ):
     command = parser.lookup_command(command_format)
     port.write(frame(parser, sequence, command.encode_by_name(**params)))
 
     deadline = time.monotonic() + timeout
     while True:
-        response = read_packet(port, parser, deadline)
+        response = read_packet(port, parser, deadline, receive_buffer)
         if len(response) == msgproto.MESSAGE_MIN:
             continue
         decoded = parser.parse(response)
@@ -98,12 +106,20 @@ def request(
             return decoded, (sequence + 1) & msgproto.MESSAGE_SEQ_MASK
 
 
-def send_command(port, parser, sequence, command_format, timeout, **params):
+def send_command(
+    port,
+    parser,
+    sequence,
+    command_format,
+    timeout,
+    receive_buffer,
+    **params,
+):
     command = parser.lookup_command(command_format)
     port.write(frame(parser, sequence, command.encode_by_name(**params)))
     deadline = time.monotonic() + timeout
     while True:
-        response = read_packet(port, parser, deadline)
+        response = read_packet(port, parser, deadline, receive_buffer)
         if len(response) == msgproto.MESSAGE_MIN:
             return (sequence + 1) & msgproto.MESSAGE_SEQ_MASK
         decoded = parser.parse(response)
@@ -146,22 +162,29 @@ def main():
     with port:
         time.sleep(args.open_delay)
         port.reset_input_buffer()
-        raw_dictionary, sequence = identify(port, args.timeout)
+        receive_buffer = bytearray()
+        raw_dictionary, sequence = identify(
+            port, args.timeout, receive_buffer
+        )
 
         protocol = msgproto.MessageParser()
         protocol.process_identify(raw_dictionary)
         uptime, sequence = request(
-            port, protocol, sequence, "get_uptime", "uptime", args.timeout
+            port, protocol, sequence, "get_uptime", "uptime", args.timeout,
+            receive_buffer=receive_buffer,
         )
         clock, sequence = request(
-            port, protocol, sequence, "get_clock", "clock", args.timeout
+            port, protocol, sequence, "get_clock", "clock", args.timeout,
+            receive_buffer=receive_buffer,
         )
         runtime_config, sequence = request(
-            port, protocol, sequence, "get_config", "config", args.timeout
+            port, protocol, sequence, "get_config", "config", args.timeout,
+            receive_buffer=receive_buffer,
         )
         time.sleep(args.stability_seconds)
         later_uptime, sequence = request(
-            port, protocol, sequence, "get_uptime", "uptime", args.timeout
+            port, protocol, sequence, "get_uptime", "uptime", args.timeout,
+            receive_buffer=receive_buffer,
         )
         neopixel_result = None
         if args.neopixel_pin is not None:
@@ -171,6 +194,7 @@ def main():
                 sequence,
                 "allocate_oids count=%c",
                 args.timeout,
+                receive_buffer=receive_buffer,
                 count=1,
             )
             sequence = send_command(
@@ -179,6 +203,7 @@ def main():
                 sequence,
                 "config_neopixel oid=%c pin=%u data_size=%hu bit_max_ticks=%u reset_min_ticks=%u",
                 args.timeout,
+                receive_buffer=receive_buffer,
                 oid=0,
                 pin=f"GPIO_NUM_{args.neopixel_pin}",
                 data_size=3,
@@ -191,6 +216,7 @@ def main():
                 sequence,
                 "finalize_config crc=%u",
                 args.timeout,
+                receive_buffer=receive_buffer,
                 crc=0xC3C3C3C3,
             )
             sequence = send_command(
@@ -199,6 +225,7 @@ def main():
                 sequence,
                 "neopixel_update oid=%c pos=%hu data=%*s",
                 args.timeout,
+                receive_buffer=receive_buffer,
                 oid=0,
                 pos=0,
                 data=bytes((0, 32, 32)),  # GRB: low-brightness violet
@@ -210,6 +237,7 @@ def main():
                 "neopixel_send oid=%c",
                 "neopixel_result",
                 args.timeout,
+                receive_buffer=receive_buffer,
                 oid=0,
             )
 
