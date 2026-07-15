@@ -8,25 +8,23 @@
 // software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied.
 
-#include "gpio.h"     // struct gpio_pwm
-#include "internal.h" // NSECS_PER_TICK
-#include "command.h"        // shutdown
-#include "sched.h"          // sched_shutdown
+#include "autoconf.h"       // CONFIG_CLOCK_FREQ
 #include "board/irq.h"      // irq_save/restore
-#include <stdio.h>
+#include "command.h"        // shutdown
+#include "gpio.h"           // struct gpio_pwm
+#include "pwm_math.h"
 #include <string.h>
 
 #include "driver/ledc.h"
 #include "esp_err.h"
 #include "hal/ledc_types.h"
 
-#define PWM_MAX (1 << 13)
+#define PWM_RESOLUTION LEDC_TIMER_10_BIT
+#define PWM_MAX ((1 << 10) - 1)
 DECL_CONSTANT("PWM_MAX", PWM_MAX);
 
 // Resource tracking with thread safety
 static struct {
-    uint8_t next_timer;
-    uint8_t next_channel; 
     uint32_t timer_frequencies[LEDC_TIMER_MAX];
     uint8_t timer_used[LEDC_TIMER_MAX];
     uint8_t channel_used[LEDC_CHANNEL_MAX];
@@ -44,10 +42,11 @@ static void pwm_init(void) {
 }
 
 // Find or allocate a timer for the given frequency
-static int find_or_allocate_timer(uint32_t freq_hz) {
+static int find_or_allocate_timer(uint32_t freq_hz, uint8_t *is_new) {
     // First check if we already have a timer with this frequency
     for (int i = 0; i < LEDC_TIMER_MAX; i++) {
         if (pwm_state.timer_used[i] && pwm_state.timer_frequencies[i] == freq_hz) {
+            *is_new = 0;
             return i;
         }
     }
@@ -57,6 +56,7 @@ static int find_or_allocate_timer(uint32_t freq_hz) {
         if (!pwm_state.timer_used[i]) {
             pwm_state.timer_used[i] = 1;
             pwm_state.timer_frequencies[i] = freq_hz;
+            *is_new = 1;
             return i;
         }
     }
@@ -90,16 +90,16 @@ struct gpio_pwm gpio_pwm_setup(uint32_t pin, uint32_t cycle_time, uint16_t val) 
         shutdown("Invalid PWM value");
     }
     
-    // Convert cycle_time to frequency (assuming cycle_time is in Hz)
-    uint32_t freq_hz = cycle_time;
-    if (freq_hz == 0 || freq_hz > 40000000) { // ESP32 LEDC max ~40MHz
+    uint32_t freq_hz = pwm_frequency_for_cycle(CONFIG_CLOCK_FREQ, cycle_time);
+    if (freq_hz == 0 || freq_hz > 78000) {
         shutdown("Invalid PWM frequency");
     }
 
     irqstatus_t flag = irq_save();
     
     // Find or allocate timer
-    int timer_num = find_or_allocate_timer(freq_hz);
+    uint8_t timer_is_new;
+    int timer_num = find_or_allocate_timer(freq_hz, &timer_is_new);
     if (timer_num < 0) {
         irq_restore(flag);
         shutdown("No available PWM timers");
@@ -115,11 +115,11 @@ struct gpio_pwm gpio_pwm_setup(uint32_t pin, uint32_t cycle_time, uint16_t val) 
     irq_restore(flag);
     
     // Configure timer if it's new
-    if (pwm_state.timer_frequencies[timer_num] == freq_hz) {
+    if (timer_is_new) {
         ledc_timer_config_t timer_config = {
             .speed_mode = LEDC_LOW_SPEED_MODE,
             .timer_num = timer_num,
-            .duty_resolution = LEDC_TIMER_13_BIT,
+            .duty_resolution = PWM_RESOLUTION,
             .freq_hz = freq_hz,
             .clk_cfg = LEDC_AUTO_CLK
         };

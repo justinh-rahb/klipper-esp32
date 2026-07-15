@@ -25,6 +25,16 @@ if(CONFIG_KLIPPER_RMT_NEOPIXEL)
     list(APPEND SOURCES board/neopixel_rmt.c)
 endif()
 
+if(CONFIG_BENTOBOX_SUPERMINI_HARDWARE)
+    list(APPEND SOURCES
+        board/hard_pwm.c
+        board/i2c.c
+        klipper/src/i2ccmds.c
+        klipper/src/i2c_software.c
+        klipper/src/pwmcmds.c
+    )
+endif()
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(EXTRACT_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/extract_compile_time_requests.py)

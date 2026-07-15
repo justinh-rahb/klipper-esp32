@@ -1,9 +1,37 @@
 menu "Klipper Firmware Configuration"
 
+    menu "ESP32-C3 board profile"
+        config BENTOBOX_SUPERMINI_HARDWARE
+            bool "Enable BentoBox ESP32-C3 SuperMini peripherals"
+            default n
+            help
+                Build the Klipper I2C and hardware-PWM command backends for
+                an ESP32-C3 SuperMini used as a BentoBox controller. The
+                reference wiring uses GPIO4/GPIO5 for I2C and GPIO0/GPIO1
+                for two external fan PWM interface circuits.
+
+        config KLIPPER_I2C0_SDA_PIN
+            int "I2C0 SDA GPIO"
+            default 4 if BENTOBOX_SUPERMINI_HARDWARE
+            default 8
+            range 0 21
+            help
+                GPIO routed to the first hardware I2C controller's SDA line.
+
+        config KLIPPER_I2C0_SCL_PIN
+            int "I2C0 SCL GPIO"
+            default 5 if BENTOBOX_SUPERMINI_HARDWARE
+            default 9
+            range 0 21
+            help
+                GPIO routed to the first hardware I2C controller's SCL line.
+    endmenu
+
     menu "Panda Breath Hardware Safety"
         config PANDA_BREATH_HARDWARE
             bool "Enable Panda Breath physical pin mapping"
             default n
+            depends on !BENTOBOX_SUPERMINI_HARDWARE
             help
                 Enable only when flashing the real Panda Breath controller.
                 The heater relay remains firmware-locked off until the local

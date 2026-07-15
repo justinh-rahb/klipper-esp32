@@ -21,11 +21,13 @@ sh tests/run_timer_math_test.sh
 
 ## Current safety state
 
-The firmware builds in two profiles:
+The firmware builds in three profiles:
 
 - `dev` uses native USB Serial/JTAG and initializes no Panda Breath pins.
 - `panda` uses UART0 through the onboard CH340K and forces the physical relay
   and TRIAC gate low before the scheduler starts.
+- `bentobox` uses native USB Serial/JTAG on an ESP32-C3 SuperMini and enables
+  the shared hardware-I2C and hardware-PWM Klipper command backends.
 
 The `panda` profile currently **locks the heater relay off**. Any request to set
 GPIO18 high causes a Klipper shutdown. Do not remove this lockout until all of
@@ -75,6 +77,12 @@ Build the real-board image with the heater still locked off:
 ./build.sh panda
 ```
 
+Build the BentoBox ESP32-C3 SuperMini image:
+
+```sh
+./build.sh bentobox
+```
+
 Klipper's dictionary is generated from compile-time request sections. The
 wrapper intentionally invokes ESP-IDF twice: the first pass generates the
 dictionary source, and the second pass compiles it into the final image.
@@ -115,3 +123,24 @@ full test cannot run directly on macOS.
 
 ESP32-C3 pin names are dictionary enumerations such as `GPIO_NUM_8`; lowercase
 names such as `gpio8` are not accepted by this firmware.
+
+## BentoBox SuperMini profile
+
+The `bentobox` profile is the first non-Panda peripheral target. It currently
+provides:
+
+- one shared hardware I2C bus on GPIO4 (SDA) and GPIO5 (SCL), suitable for the
+  Nevermore Mini BME280 (`0x77` on the combined board) and SGP40 (`0x59`);
+- two independent Klipper hardware-PWM outputs, with GPIO0 and GPIO1 used by
+  the example configuration;
+- correct conversion of Klipper's PWM period ticks to ESP-IDF LEDC frequency,
+  including the 40 us / 25 kHz period used by 4-wire PC-style fans;
+- the GPIO8 onboard NeoPixel command path used by the development profile.
+
+See `bentobox-printer.cfg.example` for Klipper configuration and interface
+wiring constraints. The BME280 works with Klipper's built-in driver. Klipper
+does not include an SGP40 driver, so the example uses the established
+[`thetic/klipper-sgp40`](https://github.com/thetic/klipper-sgp40) extras module.
+That module exposes chartable VOC index readings and calibration/query G-code;
+the MCU I2C transport it needs is included in this profile. Check its stated
+Klipper/Kalico version requirements before installing it on a printer host.

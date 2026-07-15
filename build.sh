@@ -3,9 +3,9 @@ set -eu
 
 profile="${1:-dev}"
 case "$profile" in
-    dev|panda) ;;
+    dev|panda|bentobox) ;;
     *)
-        echo "usage: $0 [dev|panda]" >&2
+        echo "usage: $0 [dev|panda|bentobox]" >&2
         exit 2
         ;;
 esac

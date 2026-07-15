@@ -1,0 +1,77 @@
+# ESP32-C3 SuperMini controller for a BentoBox using Nevermore Mini sensors.
+# Firmware: ./build.sh bentobox
+#
+# Reference SuperMini wiring:
+#   GPIO4  -> I2C SDA (BME280 + SGP40)
+#   GPIO5  -> I2C SCL (BME280 + SGP40)
+#   GPIO0  -> fan 1 open-collector PWM interface
+#   GPIO1  -> fan 2 open-collector PWM interface
+#   GPIO8  -> onboard WS2812 (optional)
+#
+# Both I2C sensor boards must run at 3.3V and share ground with the C3. Use
+# external pull-ups appropriate for the installed sensor breakout/PCB.
+# Never connect a fan motor or a 5V PWM pull-up directly to an ESP32-C3 GPIO.
+
+[mcu bentobox]
+# Replace BOARD_ID with the exact entry from: ls /dev/serial/by-id/
+serial: /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_<BOARD_ID>-if00
+restart_method: command
+
+# The combined Nevermore BME280/SGP40 PCB normally straps the BME280 to 0x77
+# (decimal 119). Common standalone BME280 boards often use 0x76 (118).
+[temperature_sensor bento_environment]
+sensor_type: BME280
+i2c_mcu: bentobox
+i2c_bus: i2c0
+i2c_address: 119
+i2c_speed: 100000
+
+# Requires https://github.com/thetic/klipper-sgp40. The module exposes VOC
+# index through Klipper's temperature-sensor interface so it is chartable in
+# Fluidd/Mainsail and provides QUERY_SGP40/RESET_SGP40/CALIBRATE_SGP40.
+[sgp40]
+
+[temperature_sensor bento_voc]
+sensor_type: SGP40
+i2c_mcu: bentobox
+i2c_bus: i2c0
+i2c_address: 89
+i2c_speed: 100000
+ref_temp_sensor: bme280 bento_environment
+ref_humidity_sensor: bme280 bento_environment
+
+# These pins assume an inverting NPN/NMOS open-collector interface for the
+# 4-wire fan's 5V-pulled-up PWM input. The inversion makes Klipper speed 0 pull
+# the fan command low and speed 1 release it high. With an unpowered MCU the
+# interface releases the PWM line, so compliant fans fail to full speed.
+[fan_generic bento_fan_1]
+pin: !bentobox:GPIO_NUM_0
+cycle_time: 0.000040
+hardware_pwm: True
+shutdown_speed: 0
+
+[fan_generic bento_fan_2]
+pin: !bentobox:GPIO_NUM_1
+cycle_time: 0.000040
+hardware_pwm: True
+shutdown_speed: 0
+
+# Optional onboard status LED. Confirm GPIO8 on the particular SuperMini.
+[neopixel bento_status]
+pin: bentobox:GPIO_NUM_8
+chain_count: 1
+color_order: GRB
+initial_RED: 0.02
+initial_GREEN: 0.02
+initial_BLUE: 0.02
+
+[gcode_macro BENTO_FANS]
+description: Set both BentoBox fans (S=0..255)
+gcode:
+    {% set requested = params.S|default(0)|float / 255.0 %}
+    {% set speed = [0.0, [requested, 1.0]|min]|max %}
+    SET_FAN_SPEED FAN=bento_fan_1 SPEED={speed}
+    SET_FAN_SPEED FAN=bento_fan_2 SPEED={speed}
+
+# Calibrate the SGP40 in clean air before using VOC index thresholds for fan
+# automation; follow the klipper-sgp40 calibration procedure (8-24 hours).

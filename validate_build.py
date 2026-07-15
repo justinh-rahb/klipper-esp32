@@ -39,6 +39,15 @@ DEV_NEOPIXEL_COMMANDS = {
     "neopixel_update oid=%c pos=%hu data=%*s",
 }
 
+BENTOBOX_COMMANDS = {
+    "config_i2c oid=%c",
+    "config_pwm_out oid=%c pin=%u cycle_ticks=%u value=%hu default_value=%hu max_duration=%u",
+    "i2c_read oid=%c reg=%*s read_len=%u",
+    "i2c_set_bus oid=%c i2c_bus=%u rate=%u address=%u",
+    "i2c_write oid=%c data=%*s",
+    "queue_pwm_out oid=%c clock=%u value=%hu",
+}
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -48,7 +57,7 @@ def main() -> int:
         type=Path,
         default=Path("build-dev/esp-idf/klipper/klipper.dict"),
     )
-    parser.add_argument("--profile", choices=("dev", "panda"))
+    parser.add_argument("--profile", choices=("dev", "panda", "bentobox"))
     args = parser.parse_args()
 
     with args.dictionary.open(encoding="utf-8") as stream:
@@ -92,6 +101,21 @@ def main() -> int:
             raise SystemExit("dev profile is missing the NeoPixel response")
     if args.profile == "panda" and DEV_NEOPIXEL_COMMANDS & commands:
         raise SystemExit("panda profile unexpectedly contains NeoPixel commands")
+    if args.profile == "bentobox":
+        missing_bentobox = sorted(BENTOBOX_COMMANDS - commands)
+        if missing_bentobox:
+            raise SystemExit(
+                f"bentobox profile is missing commands: {missing_bentobox}"
+            )
+        if "i2c_read_response oid=%c response=%*s" not in responses:
+            raise SystemExit("bentobox profile is missing the I2C response")
+        if config.get("BUS_PINS_i2c0") != "GPIO_NUM_4,GPIO_NUM_5":
+            raise SystemExit("bentobox profile has the wrong I2C pins")
+        if config.get("PWM_MAX") != 1023:
+            raise SystemExit("bentobox profile has the wrong PWM range")
+        i2c_buses = dictionary.get("enumerations", {}).get("i2c_bus", {})
+        if i2c_buses.get("i2c0") != 0:
+            raise SystemExit("bentobox profile is missing hardware I2C bus i2c0")
 
     print(
         f"validated {args.dictionary}: "
