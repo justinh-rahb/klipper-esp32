@@ -17,7 +17,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-#include "panda_breath_pins.h"
+#include "pins.h"
 
 #include "driver/gpio.h"
 #include "esp_timer.h"

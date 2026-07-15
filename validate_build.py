@@ -91,8 +91,10 @@ def main() -> int:
     lockout = "Panda heater safety interlocks not armed"
     if args.profile == "panda" and lockout not in static_strings:
         raise SystemExit("panda profile is missing the heater safety lockout")
-    if args.profile == "dev" and lockout in static_strings:
-        raise SystemExit("dev profile unexpectedly contains Panda hardware code")
+    if args.profile in ("dev", "bentobox") and lockout in static_strings:
+        raise SystemExit(
+            f"{args.profile} profile unexpectedly contains Panda hardware code"
+        )
     if args.profile == "dev":
         missing_neopixel = sorted(DEV_NEOPIXEL_COMMANDS - commands)
         if missing_neopixel:

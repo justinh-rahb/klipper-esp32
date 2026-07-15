@@ -1,146 +1,131 @@
-# Panda Breath Klipper MCU firmware
+# Klipper MCU firmware for ESP32-C3
 
-Experimental ESP32-C3 firmware that implements the subset of Klipper's MCU
-protocol needed for a chamber heater: base commands, scheduled digital output,
-and ADC sampling.
+An experimental ESP-IDF port of Klipper's MCU firmware for ESP32-C3 boards.
+It began as a Panda Breath chamber-heater controller, but the shared MCU core
+is now independent of that product. Hardware-specific behavior is selected by
+a build profile.
 
-The `dev` profile is hardware-validated as a Linux/Kalico secondary MCU,
-including clock synchronization, watchdog continuity, and a physical GPIO8
-WS2812 driven through standard Klipper NeoPixel commands. The real Panda Breath
-profile remains experimental and cannot energize its heater.
+The port currently supports Klipper's base protocol, scheduled digital output,
+ADC sampling, native USB Serial/JTAG or UART transport, ESP32-C3 RMT NeoPixel
+output, hardware I2C, and LEDC hardware PWM. It is based on
+[`nikhil-robinson/klipper_esp32`](https://github.com/nikhil-robinson/klipper_esp32)
+and its Klipper fork.
 
-The 64-bit GPTimer bridge uses signed 32-bit Klipper clock deltas. A timestamp
-that is slightly overdue is clamped to an imminent alarm instead of being
-misread as the next 32-bit epoch (a 71.6-minute delay at 1 MHz). Host tests cover
-ordinary late alarms and future/overdue timestamps on both sides of rollover:
+## Profiles
 
-```sh
-cd klipper-firmware
-sh tests/run_timer_math_test.sh
-```
+| Profile | Target | Transport | Extra peripherals |
+|---|---|---|---|
+| `dev` | Generic ESP32-C3 development board | Native USB Serial/JTAG | GPIO8 NeoPixel |
+| `bentobox` | ESP32-C3 SuperMini BentoBox controller | Native USB Serial/JTAG | I2C, two hardware-PWM fans, GPIO8 NeoPixel |
+| `panda` | BIQU Panda Breath controller | UART0 through CH340K | Relay lockout and board-specific safety foundation |
 
-## Current safety state
+Example Klipper configuration lives in [`config/`](config/). Profile-specific
+ESP-IDF defaults live in [`profiles/`](profiles/). Product code is isolated in
+[`components/klipper/board_profiles/`](components/klipper/board_profiles/).
 
-The firmware builds in three profiles:
+## Validation status
 
-- `dev` uses native USB Serial/JTAG and initializes no Panda Breath pins.
-- `panda` uses UART0 through the onboard CH340K and forces the physical relay
-  and TRIAC gate low before the scheduler starts.
-- `bentobox` uses native USB Serial/JTAG on an ESP32-C3 SuperMini and enables
-  the shared hardware-I2C and hardware-PWM Klipper command backends.
+The `dev` profile has been tested as a Linux/Kalico secondary MCU, including
+clock synchronization, watchdog continuity, a physical GPIO8 WS2812, and a
+real soak across the 32-bit timer rollover at 1 MHz. The rollover run stayed
+connected through the 71.6-minute boundary and accepted a post-rollover status
+LED command.
 
-The `panda` profile currently **locks the heater relay off**. Any request to set
-GPIO18 high causes a Klipper shutdown. Do not remove this lockout until all of
-the following exist and have hardware tests:
+The timer bridge treats Klipper clocks as wrapping 32-bit values over the
+ESP32-C3's 64-bit GPTimer. Slightly overdue timestamps are clamped to an
+imminent alarm instead of being mistaken for the next 32-bit epoch. Host tests
+cover future and overdue timestamps on both sides of rollover.
+
+The `bentobox` profile builds and exposes the MCU commands needed for a BME280,
+SGP40, and two 25 kHz 4-wire fan PWM signals. It has not yet been validated
+with those physical peripherals.
+
+## Panda Breath safety boundary
+
+The `panda` profile is experimental and **locks the heater relay off**. Any
+request to set GPIO18 high triggers a Klipper shutdown. Do not remove this
+lockout or energize the heater until the board has independently tested:
 
 - calibrated chamber and PTC thermistor conversion;
 - open/short detection for both thermistors;
 - a latched local PTC overtemperature cutoff;
 - fan startup and zero-crossing interlocks;
 - MCU watchdog and communication-timeout fault injection;
-- verified relay-off behavior during boot, reset, panic, and shutdown.
+- relay-off behavior during boot, reset, panic, and shutdown.
 
 The legacy `esp_timer` TRIAC implementation is disabled by default and retained
 only as a reference while a hardware-timed replacement is developed.
 
-The `dev` profile additionally exposes Klipper's standard NeoPixel commands
-through the ESP32-C3 RMT peripheral. This keeps WS2812 sub-microsecond waveform
-timing independent of Klipper's intentional 1MHz scheduling clock. The feature
-is excluded from the `panda` profile.
-
 ## Build
 
-Prerequisites:
+Requirements:
 
-1. ESP-IDF 5.3.x with the ESP32-C3 RISC-V toolchain.
-2. The Klipper submodule initialized:
-
-   ```sh
-   git submodule update --init --recursive
-   ```
-
-3. ESP-IDF exported into the shell:
-
-   ```sh
-   source ~/esp/esp-idf/export.sh
-   ```
-
-Build the safe development-board image:
+- ESP-IDF 5.3.x with the ESP32-C3 RISC-V toolchain;
+- Python 3;
+- the Klipper submodule initialized.
 
 ```sh
+git submodule update --init --recursive
+source ~/esp/esp-idf/export.sh
 ./build.sh dev
-```
-
-Build the real-board image with the heater still locked off:
-
-```sh
+./build.sh bentobox
 ./build.sh panda
 ```
 
-Build the BentoBox ESP32-C3 SuperMini image:
+Each invocation uses a separate `build-<profile>/` directory and validates the
+generated Klipper protocol dictionary. The wrapper intentionally invokes
+ESP-IDF twice: pass one generates Klipper's compile-time request source and
+pass two compiles it into the final image.
 
-```sh
-./build.sh bentobox
-```
+Artifacts include:
 
-Klipper's dictionary is generated from compile-time request sections. The
-wrapper intentionally invokes ESP-IDF twice: the first pass generates the
-dictionary source, and the second pass compiles it into the final image.
-
-Artifacts are written to `build-<profile>/`:
-
-- `panda_breath.bin`
-- `panda_breath.elf`
-- `esp-idf/klipper/klipper.dict`
+- `build-<profile>/klipper_esp32c3.bin`
+- `build-<profile>/klipper_esp32c3.elf`
+- `build-<profile>/esp-idf/klipper/klipper.dict`
 
 The dictionary is embedded in the MCU image and transferred during Klipper's
-identify handshake; it does not need to be copied to the Klipper host.
+identify handshake; it does not need to be copied to the host.
 
-## Flash the development board
+## Flash and probe a development board
 
 ```sh
 idf.py -B build-dev -p /dev/cu.usbmodemXXXX flash
-```
-
-Some boards require manual ROM-loader entry: hold **BOOT**, tap **RESET**, then
-release **BOOT** before running the flash command.
-
-For a macOS smoke test, install `pyserial` into your test environment and run:
-
-```sh
 python3 probe_mcu.py /dev/cu.usbmodemXXXX
 ```
 
-The probe performs Klipper identify, uptime, clock, and configuration queries,
-then holds the connection idle long enough to catch a task-watchdog reset. On
-native USB it allows one second for the board's automatic open/reset cycle.
-By default it never configures GPIOs or sends output commands. Passing
-`--neopixel-pin 8` additionally performs the dev-only RMT NeoPixel test.
+Some boards require manual ROM-loader entry: hold **BOOT**, tap **RESET**, then
+release **BOOT** before flashing. The probe performs identify, uptime, clock,
+and configuration queries without configuring outputs. Add `--neopixel-pin 8`
+for the dev-only RMT NeoPixel test.
 
-Use `dev-printer.cfg.example` for a full protocol-only Klippy connection test
-from a Linux Klipper host. Klipper's host C helper is Linux-specific, so that
-full test cannot run directly on macOS.
+For a full Klippy connection on Linux, start from [`config/dev.cfg`](config/dev.cfg).
+ESP32-C3 pin names are dictionary enumerations such as `GPIO_NUM_8`; names like
+`gpio8` are not accepted.
 
-ESP32-C3 pin names are dictionary enumerations such as `GPIO_NUM_8`; lowercase
-names such as `gpio8` are not accepted by this firmware.
+## BentoBox profile
 
-## BentoBox SuperMini profile
+The reference SuperMini wiring uses GPIO4/GPIO5 for a shared hardware I2C bus
+and GPIO0/GPIO1 for two external open-collector fan PWM interfaces. The
+Nevermore Mini combined sensor board normally places its BME280 at `0x77` and
+SGP40 at `0x59`.
 
-The `bentobox` profile is the first non-Panda peripheral target. It currently
-provides:
+Klipper has a built-in BME280 driver. The example uses
+[`thetic/klipper-sgp40`](https://github.com/thetic/klipper-sgp40) for the SGP40;
+check that module's Klipper/Kalico version requirements before installation.
+See [`config/bentobox.cfg`](config/bentobox.cfg) for wiring constraints, sensor
+configuration, Fluidd/Mainsail-visible values, and fan G-code.
 
-- one shared hardware I2C bus on GPIO4 (SDA) and GPIO5 (SCL), suitable for the
-  Nevermore Mini BME280 (`0x77` on the combined board) and SGP40 (`0x59`);
-- two independent Klipper hardware-PWM outputs, with GPIO0 and GPIO1 used by
-  the example configuration;
-- correct conversion of Klipper's PWM period ticks to ESP-IDF LEDC frequency,
-  including the 40 us / 25 kHz period used by 4-wire PC-style fans;
-- the GPIO8 onboard NeoPixel command path used by the development profile.
+## Tests
 
-See `bentobox-printer.cfg.example` for Klipper configuration and interface
-wiring constraints. The BME280 works with Klipper's built-in driver. Klipper
-does not include an SGP40 driver, so the example uses the established
-[`thetic/klipper-sgp40`](https://github.com/thetic/klipper-sgp40) extras module.
-That module exposes chartable VOC index readings and calibration/query G-code;
-the MCU I2C transport it needs is included in this profile. Check its stated
-Klipper/Kalico version requirements before installing it on a printer host.
+```sh
+sh tests/run_timer_math_test.sh
+sh tests/run_pwm_math_test.sh
+python3 -m py_compile probe_mcu.py validate_build.py
+```
+
+The profile build itself also runs `validate_build.py` against the emitted MCU
+dictionary.
+
+## License
+
+GNU GPLv3. See [`LICENSE`](LICENSE).

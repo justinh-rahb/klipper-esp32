@@ -1,11 +1,9 @@
 set(SOURCES
-    # Panda Breath board-specific sources
+    # Shared ESP32-C3 board layer
     board/adc.c
     board/console.c
-    board/fan.c
     board/gpio.c
     board/internal.c
-    board/safety.c
     board/timer.c
 
     # Klipper MCU core sources
@@ -20,6 +18,22 @@ set(SOURCES
     klipper/src/generic/serial_irq.c
     klipper/src/generic/timer_irq.c
 )
+
+set(KLIPPER_INCLUDE_DIRS
+    klipper/src
+    klipper/src/generic
+    .
+    board
+)
+
+if(CONFIG_PANDA_BREATH_HARDWARE)
+    list(APPEND SOURCES board_profiles/panda_breath/safety.c)
+    list(APPEND KLIPPER_INCLUDE_DIRS board_profiles/panda_breath)
+endif()
+
+if(CONFIG_PANDA_BREATH_LEGACY_FAN)
+    list(APPEND SOURCES board_profiles/panda_breath/fan.c)
+endif()
 
 if(CONFIG_KLIPPER_RMT_NEOPIXEL)
     list(APPEND SOURCES board/neopixel_rmt.c)
@@ -66,11 +80,7 @@ list(APPEND SOURCES ${CTR_FILE})
 
 idf_component_register(
     SRCS ${SOURCES}
-    INCLUDE_DIRS
-        klipper/src
-        klipper/src/generic
-        .
-        board
+    INCLUDE_DIRS ${KLIPPER_INCLUDE_DIRS}
     # driver provides UART and native USB Serial/JTAG transports.
     REQUIRES driver esp_adc esp_driver_rmt esp_vfs_console esp_timer esp_system
 )

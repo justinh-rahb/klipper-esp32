@@ -1,0 +1,10 @@
+build/
+build-*/
+sdkconfig
+sdkconfig.*
+!sdkconfig.defaults
+sdkconfig.old
+components/klipper/klipper/out/
+__pycache__/
+*.py[cod]
+.DS_Store

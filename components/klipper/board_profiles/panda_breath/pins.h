@@ -11,7 +11,6 @@
 // GPIO numbers confirmed via IO-net labels are marked CONFIRMED.
 // GPIO numbers inferred from module pad cross-reference are marked INFERRED —
 // continuity testing on real hardware is recommended before first flash.
-// See research/hardware-schematic.md for full schematic analysis.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -41,7 +40,7 @@
 
 // UART0 — CH340K USB-C bridge (physical pins 30/31 on the module)
 // These are the default UART0 pins on the ESP32-C3-MINI-1; configured in
-// sdkconfig.defaults and used by board/console.c (CONFIG_CONSOLE_UART path).
+// profiles/panda.defaults and used by board/console.c (CONFIG_CONSOLE_UART path).
 #define GPIO_UART_TX        21  // TXD0
 #define GPIO_UART_RX        20  // RXD0
 

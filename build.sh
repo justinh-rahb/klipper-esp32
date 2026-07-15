@@ -17,7 +17,7 @@ fi
 
 build_dir="build-${profile}"
 sdkconfig="sdkconfig.${profile}"
-defaults="sdkconfig.defaults;sdkconfig.${profile}.defaults"
+defaults="sdkconfig.defaults;profiles/${profile}.defaults"
 
 # Pass one compiles the MCU objects and generates Klipper's dictionary source.
 SDKCONFIG_DEFAULTS="$defaults" idf.py -B "$build_dir" \
@@ -30,5 +30,5 @@ SDKCONFIG_DEFAULTS="$defaults" idf.py -B "$build_dir" \
 python3 ./validate_build.py --profile "$profile" \
     "$build_dir/esp-idf/klipper/klipper.dict"
 
-echo "firmware: $build_dir/panda_breath.bin"
+echo "firmware: $build_dir/klipper_esp32c3.bin"
 echo "dictionary: $build_dir/esp-idf/klipper/klipper.dict"
