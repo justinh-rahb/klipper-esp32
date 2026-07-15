@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
+
 """Perform a minimal Klipper identify exchange over a serial device.
 
 This deliberately avoids Klipper's Linux-only host C helper so the ESP32-C3

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca> (ESP32-C3 modifications)
+# Distributed under the terms of the GNU GPLv3 license.
+
 # ESP32-C3 target
 CONFIG_IDF_TARGET="esp32c3"
 

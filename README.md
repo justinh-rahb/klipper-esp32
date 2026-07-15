@@ -5,7 +5,9 @@ It began as a Panda Breath chamber-heater controller, but the shared MCU core
 is now independent of that product. Hardware-specific behavior is selected by
 a build profile.
 
-The port currently supports Klipper's base protocol, scheduled digital output,
+The ESP32-C3 adaptation, board profiles, and validation tooling in this
+repository are maintained by Justin Hayes. The port currently supports
+Klipper's base protocol, scheduled digital output,
 ADC sampling, native USB Serial/JTAG or UART transport, ESP32-C3 RMT NeoPixel
 output, hardware I2C, and LEDC hardware PWM. It is based on
 [`nikhil-robinson/klipper_esp32`](https://github.com/nikhil-robinson/klipper_esp32)
@@ -128,4 +130,5 @@ dictionary.
 
 ## License
 
-GNU GPLv3. See [`LICENSE`](LICENSE).
+GNU GPLv3. See [`LICENSE`](LICENSE). See [`AUTHORS.md`](AUTHORS.md) for project
+authorship and upstream provenance.

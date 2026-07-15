@@ -1,4 +1,6 @@
 # ESP32-C3 SuperMini BentoBox controller profile.
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
 CONFIG_KLIPPER_CONSOLE_USB_CDC=y
 # CONFIG_KLIPPER_CONSOLE_UART is not set
 # CONFIG_PANDA_BREATH_HARDWARE is not set

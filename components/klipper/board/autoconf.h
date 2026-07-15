@@ -1,3 +1,7 @@
+// Copyright (C) 2024 Nikhil Robinson <nikhil@techprogeny.com>
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca> (ESP32-C3 modifications)
+// Distributed under the terms of the GNU GPLv3 license.
+
 #ifndef __AUTOCONF_H
 #define __AUTOCONF_H
 

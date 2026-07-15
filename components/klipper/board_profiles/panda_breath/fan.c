@@ -1,5 +1,7 @@
 // Internal TRIAC phase-angle fan control for BIQU Panda Breath
 //
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+//
 // The two 75x75x30mm AC fans are driven by a BT136-800E TRIAC via MOC3021S
 // optocoupler. A TLP785 zero-crossing detector on GPIO_ZERO_CROSS fires an
 // ISR every AC half-cycle (nominally every ~8.3ms at 60Hz or ~10ms at 50Hz).

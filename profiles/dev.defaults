@@ -1,4 +1,6 @@
 # Safe ESP32-C3 development-board profile.
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
 # No Panda Breath physical pins or heater/fan code are initialized.
 CONFIG_KLIPPER_CONSOLE_USB_CDC=y
 # CONFIG_KLIPPER_CONSOLE_UART is not set

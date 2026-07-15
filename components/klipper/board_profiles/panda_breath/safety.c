@@ -1,9 +1,13 @@
 // Panda Breath heater safety boundary.
 //
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+//
 // The physical relay is deliberately locked off in this foundation build.
 // Klipper protocol and timing can therefore be exercised on either a dev board
 // or the real controller without permitting heater power before local PTC and
 // airflow interlocks are implemented and validated.
+//
+// This file may be distributed under the terms of the GNU GPLv3 license.
 
 #include "autoconf.h"
 #include "pins.h"

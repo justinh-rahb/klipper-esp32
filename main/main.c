@@ -3,7 +3,7 @@
 // Adapts klipper_esp32 (nikhil-robinson) for ESP32-C3 board profiles.
 //
 // Copyright (C) 2024  Nikhil Robinson <nikhil@techprogeny.com> (original ESP32 port)
-// ESP32-C3 adaptation: see project contributors
+// Copyright (C) 2026  Justin Hayes <justinh@rahb.ca> (ESP32-C3 adaptation)
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 

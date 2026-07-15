@@ -1,7 +1,7 @@
 // ESP32 hardware I2C support for Klipper MCU commands.
 //
 // Copyright (C) 2024 Nikhil Robinson <nikhil@techprogeny.com>
-// Copyright (C) 2026 project contributors
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca> (ESP32-C3 integration)
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 

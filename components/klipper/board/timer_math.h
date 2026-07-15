@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+// Distributed under the terms of the GNU GPLv3 license.
+
 #ifndef __ESP32_TIMER_MATH_H
 #define __ESP32_TIMER_MATH_H
 

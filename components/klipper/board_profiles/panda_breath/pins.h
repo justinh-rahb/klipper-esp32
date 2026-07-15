@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+// Distributed under the terms of the GNU GPLv3 license.
+
 #ifndef __PANDA_BREATH_PINS_H
 #define __PANDA_BREATH_PINS_H
 

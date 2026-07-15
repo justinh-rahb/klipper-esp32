@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# ESP32-C3 profile additions are distributed under the GNU GPLv3 license.
+
 menu "Klipper Firmware Configuration"
 
     menu "ESP32-C3 board profile"

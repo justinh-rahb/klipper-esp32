@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+// Distributed under the terms of the GNU GPLv3 license.
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>

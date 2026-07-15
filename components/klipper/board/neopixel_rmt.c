@@ -1,9 +1,13 @@
 // Klipper NeoPixel protocol implemented with the ESP32-C3 RMT peripheral.
 //
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+//
 // Klipper's generic bit-banger needs sub-microsecond timer ticks. The Panda
 // firmware intentionally exposes a 1MHz scheduler clock, so RMT generates the
 // WS2812 waveform independently at 10MHz while retaining Klipper's standard
 // config_neopixel/neopixel_update/neopixel_send command interface.
+//
+// This file may be distributed under the terms of the GNU GPLv3 license.
 
 #include <string.h>
 

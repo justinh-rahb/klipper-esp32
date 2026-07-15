@@ -2,8 +2,9 @@
 // Direct driver access keeps ESP-IDF VFS and line-ending translation away
 // from Klipper's binary framing.
 //
+// Based on Klipper's Linux console by Kevin O'Connor and contributors.
 // Copyright (C) 2024 Nikhil Robinson <nikhil@techprogeny.com>
-// Panda Breath safety adaptation: project contributors
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca> (ESP32-C3 adaptation)
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 

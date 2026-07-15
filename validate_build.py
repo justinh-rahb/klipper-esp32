@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
+
 """Validate the minimal Klipper MCU dictionary emitted by the build."""
 
 import argparse

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
+
 set(SOURCES
     # Shared ESP32-C3 board layer
     board/adc.c

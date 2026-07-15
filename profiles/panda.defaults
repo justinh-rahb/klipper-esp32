@@ -1,4 +1,6 @@
 # Real Panda Breath controller profile.
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
 # The safety boundary still locks GPIO18 low; this profile does not arm heat.
 CONFIG_PANDA_BREATH_HARDWARE=y
 # CONFIG_PANDA_BREATH_LEGACY_FAN is not set
