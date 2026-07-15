@@ -128,6 +128,13 @@ python3 -m py_compile probe_mcu.py validate_build.py
 The profile build itself also runs `validate_build.py` against the emitted MCU
 dictionary.
 
+## Roadmap
+
+The project targets dependable non-motion secondary-MCU use rather than every
+Klipper command. See [`ROADMAP.md`](ROADMAP.md) for the planned input, counter,
+ESP32-S3 and original ESP32 ports, SPI, sensor, and experimental
+single-extruder work.
+
 ## License
 
 GNU GPLv3. See [`LICENSE`](LICENSE). See [`AUTHORS.md`](AUTHORS.md) for project
