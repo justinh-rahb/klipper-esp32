@@ -7,9 +7,8 @@ Distributed under the terms of the GNU GPLv3 license.
 
 The goal is a dependable ESP32-family **secondary Klipper MCU** for sensors,
 fans, LEDs, buttons, and printer accessories. ESP32-C3 is the reference target;
-ESP32-S3 has completed initial hardware bring-up, and the original ESP32 remains
-a planned target. It is not intended to become a general-purpose motion
-controller.
+ESP32-S3 and the original ESP32 have completed initial hardware bring-up. It is
+not intended to become a general-purpose motion controller.
 
 The project will implement the Klipper command families that unlock useful
 peripherals on those three chips. It will not chase command-count parity with
@@ -26,8 +25,9 @@ every Klipper MCU target.
 
 ## Current baseline
 
-The current generated dictionaries contain 17 commands for `panda`, 20 for
-`dev`, and 28 for `bentobox`.
+The current generated dictionaries contain 17 commands for `panda`, 17 for the
+original-ESP32 `dev` target, 20 for the C3/S3 `dev` targets, and 28 for
+`bentobox`.
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -37,6 +37,7 @@ The current generated dictionaries contain 17 commands for `panda`, 20 for
 | UART and native USB Serial/JTAG transports | Validated | Profile selected; Klipper binary framing is isolated from ESP-IDF logging. |
 | RMT NeoPixel | Validated on `dev` | Physical GPIO8 C3 and GPIO48 S3 LEDs have been exercised through Klippy. |
 | ESP32-S3 target | Klippy bring-up validated | Native USB, identify/clock/uptime, host-service reconnect, and visible GPIO48 RMT pass on a dual-USB-C S3 board; rollover, ADC, and physical USB reconnect testing remain. |
+| Original ESP32 target | Protocol bring-up validated | ESP32-D0WDQ6 rev1 with CP2102 passes UART identify/clock/uptime/config and watchdog-stability probes; Klippy, GPIO, ADC, reconnect, and rollover validation remain. |
 | Hardware I2C | Builds on `bentobox` | BME280 and SGP40 command support is present; physical sensor validation remains. |
 | LEDC hardware PWM | Builds on `bentobox` | Two independent 25 kHz fan outputs are configured; physical fan validation remains. |
 | Panda Breath heater control | Locked out | Intentionally unavailable until the documented local safety interlocks are implemented and tested. |
@@ -57,7 +58,7 @@ The current generated dictionaries contain 17 commands for `panda`, 20 for
 - Separate peripheral feature switches from product profiles. A generic board
   should be able to enable I2C, hardware PWM, SPI, or NeoPixel independently.
 
-### P1 — Finish ESP32-S3 and add original ESP32
+### P1 — Finish ESP32-S3 and original ESP32 qualification
 
 Make the chip target independent from the product profile before adding many
 more peripheral command families. In particular, a `dev` role should be
@@ -101,6 +102,21 @@ Completed S3 foundation:
 
 Remaining S3 qualification includes a scheduled digital GPIO test, ADC checks,
 physical USB disconnect/reconnect recovery, and the 32-bit rollover soak.
+
+Completed original-ESP32 foundation:
+
+- separate `esp32` build, sdkconfig, artifact, and dictionary identity;
+- UART0 transport through GPIO1/GPIO3 at 250000 baud with all ESP-IDF logging
+  kept off the binary protocol channel;
+- target-aware 40-entry GPIO dictionary range and the existing original-ESP32
+  ADC1/ADC2 channel map;
+- deliberate Klipper task affinity on core 0; and
+- real identify, dictionary, clock, uptime, configuration-state, and
+  watchdog-stability probes on an ESP32-D0WDQ6 revision 1 board with CP2102.
+
+Remaining original-ESP32 qualification includes a Klippy connection, scheduled
+digital GPIO and ADC checks, physical disconnect/reconnect recovery, RMT/LEDC/
+I2C validation, and the 32-bit rollover soak.
 
 ### P2 — Inputs and fan feedback
 

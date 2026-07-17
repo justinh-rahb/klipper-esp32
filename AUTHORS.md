@@ -8,7 +8,7 @@ contributions easier to find.
 ## Justin Hayes
 
 Justin Hayes <justinh@rahb.ca> is the primary author and maintainer of the
-ESP32-C3 and ESP32-S3 work in this repository, including:
+ESP32-family work added in this repository, including:
 
 - the ESP32-C3 board-profile architecture and standalone build layout;
 - the Panda Breath hardware mapping and safety boundary;
@@ -17,6 +17,8 @@ ESP32-C3 and ESP32-S3 work in this repository, including:
 - the MCU probe and build-dictionary validation tools;
 - the BentoBox profile, hardware-I2C integration, and LEDC hardware-PWM work;
 - the ESP32-S3 target port, build separation, and development-board bring-up;
+- the original-ESP32 target integration, UART transport configuration,
+  dictionary validation, and development-board bring-up;
 - the example configurations, profile defaults, host tests, and documentation.
 
 ## Upstream work

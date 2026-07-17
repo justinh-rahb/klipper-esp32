@@ -16,7 +16,9 @@
 #include "esp_system.h"
 #include "sched.h"          // sched_is_shutdown
 
-#if CONFIG_IDF_TARGET_ESP32C3
+#if CONFIG_IDF_TARGET_ESP32
+#define KLIPPER_MCU_NAME "esp32"
+#elif CONFIG_IDF_TARGET_ESP32C3
 #define KLIPPER_MCU_NAME "esp32c3"
 #elif CONFIG_IDF_TARGET_ESP32S3
 #define KLIPPER_MCU_NAME "esp32s3"

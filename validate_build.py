@@ -62,7 +62,7 @@ def main() -> int:
     )
     parser.add_argument("--profile", choices=("dev", "panda", "bentobox"))
     parser.add_argument(
-        "--target", choices=("esp32c3", "esp32s3"), default="esp32c3"
+        "--target", choices=("esp32", "esp32c3", "esp32s3"), default="esp32c3"
     )
     args = parser.parse_args()
 
@@ -82,7 +82,9 @@ def main() -> int:
             raise SystemExit(f"{key}: expected {expected!r}, got {actual!r}")
 
     pin_ranges = dictionary.get("enumerations", {}).get("pin", {})
-    expected_pin_count = {"esp32c3": 22, "esp32s3": 49}[args.target]
+    expected_pin_count = {"esp32": 40, "esp32c3": 22, "esp32s3": 49}[
+        args.target
+    ]
     if pin_ranges.get("GPIO_NUM_0") != [0, expected_pin_count]:
         raise SystemExit(
             f"{args.target} dictionary does not expose GPIO_NUM_0 through "
@@ -109,12 +111,14 @@ def main() -> int:
         raise SystemExit(
             f"{args.profile} profile unexpectedly contains Panda hardware code"
         )
-    if args.profile == "dev":
+    if args.profile == "dev" and args.target != "esp32":
         missing_neopixel = sorted(DEV_NEOPIXEL_COMMANDS - commands)
         if missing_neopixel:
             raise SystemExit(f"dev profile is missing NeoPixel commands: {missing_neopixel}")
         if "neopixel_result oid=%c success=%c" not in responses:
             raise SystemExit("dev profile is missing the NeoPixel response")
+    if args.target == "esp32" and DEV_NEOPIXEL_COMMANDS & commands:
+        raise SystemExit("original ESP32 target unexpectedly contains NeoPixel commands")
     if args.profile == "panda" and DEV_NEOPIXEL_COMMANDS & commands:
         raise SystemExit("panda profile unexpectedly contains NeoPixel commands")
     if args.profile == "bentobox":

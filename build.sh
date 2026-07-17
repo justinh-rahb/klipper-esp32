@@ -9,15 +9,15 @@ target="${2:-esp32c3}"
 case "$profile" in
     dev|panda|bentobox) ;;
     *)
-        echo "usage: $0 [dev|panda|bentobox] [esp32c3|esp32s3]" >&2
+        echo "usage: $0 [dev|panda|bentobox] [esp32|esp32c3|esp32s3]" >&2
         exit 2
         ;;
 esac
 
 case "$target" in
-    esp32c3|esp32s3) ;;
+    esp32|esp32c3|esp32s3) ;;
     *)
-        echo "usage: $0 [dev|panda|bentobox] [esp32c3|esp32s3]" >&2
+        echo "usage: $0 [dev|panda|bentobox] [esp32|esp32c3|esp32s3]" >&2
         exit 2
         ;;
 esac
@@ -34,7 +34,10 @@ fi
 
 build_dir="build-${target}-${profile}"
 sdkconfig="sdkconfig.${target}.${profile}"
-defaults="sdkconfig.defaults;targets/${target}.defaults;profiles/${profile}.defaults"
+# Apply the chip target last so transport constraints can override a portable
+# profile. In particular, the original ESP32 must use UART because it has no
+# native USB Serial/JTAG peripheral.
+defaults="sdkconfig.defaults;profiles/${profile}.defaults;targets/${target}.defaults"
 project_name="klipper_${target}"
 
 # Pass one compiles the MCU objects and generates Klipper's dictionary source.

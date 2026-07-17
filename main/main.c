@@ -1,4 +1,4 @@
-// Klipper MCU firmware for ESP32-C3 and ESP32-S3 — entry point
+// Klipper MCU firmware for the original ESP32, ESP32-C3, and ESP32-S3
 //
 // Adapts klipper_esp32 (nikhil-robinson) for ESP32-family board profiles.
 //
@@ -46,7 +46,7 @@ void app_main(void)
     panda_safety_early_init();
 #endif
 
-    // Core 0 is the C3's only core and the S3's deliberate Klipper core.
-    // Keeping the scheduler pinned avoids migrations on dual-core targets.
+    // Core 0 is the C3's only core and the deliberate Klipper core on the
+    // dual-core original ESP32 and S3. Pinning avoids scheduler migrations.
     xTaskCreatePinnedToCore(main_task, "main_task", 16384, NULL, 20, NULL, 0);
 }

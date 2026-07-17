@@ -1,12 +1,13 @@
-# Klipper MCU firmware for ESP32-C3 and ESP32-S3
+# Klipper MCU firmware for ESP32, ESP32-C3, and ESP32-S3
 
 An experimental ESP-IDF port of Klipper's MCU firmware for ESP32-family boards.
 It began as a Panda Breath chamber-heater controller, but the shared MCU core
 is now independent of that product. Hardware-specific behavior is selected by
 a build profile, while the chip is selected independently as a build target.
 
-The ESP32-C3 adaptation, board profiles, and validation tooling in this
-repository, including the ESP32-S3 target port, are maintained by Justin Hayes.
+The ESP32-family adaptation, board profiles, and validation tooling in this
+repository, including the ESP32-S3 and modern original-ESP32 target work, are
+maintained by Justin Hayes.
 The port currently supports
 Klipper's base protocol, scheduled digital output,
 ADC sampling, native USB Serial/JTAG or UART transport, ESP32 RMT NeoPixel
@@ -18,6 +19,7 @@ and its Klipper fork.
 
 | Profile | Target | Transport | Extra peripherals |
 |---|---|---|---|
+| `dev` | Original ESP32 development board | UART0 over USB-UART bridge | Base protocol, GPIO, ADC |
 | `dev` | Generic ESP32-C3 or ESP32-S3 development board | Native USB Serial/JTAG | RMT NeoPixel |
 | `bentobox` | ESP32-C3 SuperMini BentoBox controller | Native USB Serial/JTAG | I2C, two hardware-PWM fans, GPIO8 NeoPixel |
 | `panda` | BIQU Panda Breath controller | UART0 through CH340K | Relay lockout and board-specific safety foundation |
@@ -45,8 +47,18 @@ pinned to core 0. A physical USB disconnect/reconnect test, ADC validation, and
 rollover soak are still required before the S3 meets the roadmap's complete
 support definition.
 
+Initial original-ESP32 hardware bring-up is complete on an ESP32-D0WDQ6
+revision 1 development board with a CP2102 USB-UART bridge and 4 MB flash. The
+UART0 transport on GPIO1/GPIO3 completed identify, dictionary transfer, clock,
+uptime, configuration-state, and watchdog-stability probes at 250000 baud. The
+firmware reports a distinct `esp32` MCU identity and exposes the original
+chip's 40-entry GPIO number range with runtime rejection of invalid and
+input-only outputs. A real Klippy connection, scheduled GPIO test, ADC checks,
+disconnect/reconnect test, and rollover soak remain before this target is
+called fully supported.
+
 The timer bridge treats Klipper clocks as wrapping 32-bit values over the
-ESP32-C3's 64-bit GPTimer. Slightly overdue timestamps are clamped to an
+ESP32 family's 64-bit GPTimer. Slightly overdue timestamps are clamped to an
 imminent alarm instead of being mistaken for the next 32-bit epoch. Host tests
 cover future and overdue timestamps on both sides of rollover.
 
@@ -82,14 +94,15 @@ Requirements:
 git submodule update --init --recursive
 source ~/esp/esp-idf/export.sh
 ./build.sh dev
+./build.sh dev esp32
 ./build.sh dev esp32s3
 ./build.sh bentobox
 ./build.sh panda
 ```
 
 Omitting the target keeps the existing ESP32-C3 default. Only the generic
-`dev` profile is portable to S3; the `bentobox` and `panda` product profiles
-are rejected for non-C3 targets.
+`dev` profile is portable to the original ESP32 and S3; the `bentobox` and
+`panda` product profiles are rejected for non-C3 targets.
 
 Each invocation uses a separate `build-<target>-<profile>/` directory and
 validates the generated Klipper protocol dictionary. The wrapper intentionally
@@ -138,6 +151,24 @@ whose RGB LED is on GPIO48. Espressif's
 moved it to GPIO38. S3 pin names use the same `GPIO_NUM_<n>` form; GPIO22
 through GPIO25 do not exist on S3 and are rejected by the firmware if requested.
 
+For an original ESP32 board with a USB-UART bridge, build, flash, and probe the
+bridge device instead. The tested CP2102 appeared as `/dev/cu.usbserial-0001`
+on macOS:
+
+```sh
+./build.sh dev esp32
+idf.py -B build-esp32-dev -p /dev/cu.usbserial-0001 flash
+python probe_mcu.py /dev/cu.usbserial-0001
+```
+
+The target uses UART0 at 250000 baud: GPIO1 is TX and GPIO3 is RX. Start a
+Linux Klippy configuration from [`config/dev-esp32.cfg`](config/dev-esp32.cfg)
+and replace its example `/dev/serial/by-id/` path with the stable path reported
+for your bridge. A plain onboard LED, when present, is often on GPIO2; it is not
+enabled by default because GPIO2 is also a boot-strapping pin and board layouts
+vary. The original ESP32 image deliberately omits NeoPixel commands until its
+RMT implementation has target-specific hardware validation.
+
 ## BentoBox profile
 
 The reference SuperMini wiring uses GPIO4/GPIO5 for a shared hardware I2C bus
@@ -166,8 +197,8 @@ dictionary.
 
 The project targets dependable non-motion secondary-MCU use rather than every
 Klipper command. See [`ROADMAP.md`](ROADMAP.md) for the planned input, counter,
-original ESP32 port, further ESP32-S3 validation, SPI, sensor, and experimental
-single-extruder work.
+original ESP32 qualification, further ESP32-S3 validation, SPI, sensor, and
+experimental single-extruder work.
 
 ## License
 

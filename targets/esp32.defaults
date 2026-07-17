@@ -1,0 +1,23 @@
+# Original ESP32 target defaults.
+# Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
+# Distributed under the terms of the GNU GPLv3 license.
+
+CONFIG_IDF_TARGET="esp32"
+
+# Classic ESP32 development boards normally expose UART0 through a CP210x or
+# CH340 USB bridge. GPIO1 is TX and GPIO3 is RX.
+CONFIG_KLIPPER_CONSOLE_UART=y
+# CONFIG_KLIPPER_CONSOLE_USB_CDC is not set
+CONFIG_KLIPPER_UART_NUM=0
+CONFIG_KLIPPER_UART_BAUD_RATE=250000
+CONFIG_KLIPPER_UART_TX_PIN=1
+CONFIG_KLIPPER_UART_RX_PIN=3
+CONFIG_KLIPPER_UART_RTS_PIN=-1
+CONFIG_KLIPPER_UART_CTS_PIN=-1
+CONFIG_KLIPPER_UART_TX_BUFFER_SIZE=256
+CONFIG_KLIPPER_UART_RX_BUFFER_SIZE=1024
+
+# Do not assume that a classic ESP32 board has an addressable onboard LED.
+# RMT NeoPixel support can be enabled as a separate feature after hardware
+# validation on this target.
+# CONFIG_KLIPPER_RMT_NEOPIXEL is not set
