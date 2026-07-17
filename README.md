@@ -35,13 +35,15 @@ real soak across the 32-bit timer rollover at 1 MHz. The rollover run stayed
 connected through the 71.6-minute boundary and accepted a post-rollover status
 LED command.
 
-Initial ESP32-S3 hardware bring-up is also complete on a dual-USB-C
+ESP32-S3 hardware and Klippy bring-up is also complete on a dual-USB-C
 ESP32-S3-WROOM-1 board with 16 MB flash and 8 MB embedded PSRAM. The native
 USB Serial/JTAG transport completed identify, clock, uptime, configuration,
-and watchdog-stability probes, and the onboard GPIO48 addressable RGB accepted
-an RMT frame. The S3 scheduler is deliberately pinned to core 0. A full Klippy
-connection, disconnect/reconnect test, ADC validation, and rollover soak are
-still required before the S3 meets the roadmap's complete support definition.
+and watchdog-stability probes. A dedicated Kalico instance configured the MCU,
+reconnected after its host service restarted, and drove a visible RGB sequence
+through the onboard GPIO48 addressable LED. The S3 scheduler is deliberately
+pinned to core 0. A physical USB disconnect/reconnect test, ADC validation, and
+rollover soak are still required before the S3 meets the roadmap's complete
+support definition.
 
 The timer bridge treats Klipper clocks as wrapping 32-bit values over the
 ESP32-C3's 64-bit GPTimer. Slightly overdue timestamps are clamped to an

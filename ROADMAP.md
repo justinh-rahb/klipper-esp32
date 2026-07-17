@@ -35,8 +35,8 @@ The current generated dictionaries contain 17 commands for `panda`, 20 for
 | Scheduled digital output | Validated | Tested through Klippy on an ESP32-C3 development board. |
 | Analog input | Firmware available | Physical ADC range, calibration, and fault behavior still need profile-specific validation. |
 | UART and native USB Serial/JTAG transports | Validated | Profile selected; Klipper binary framing is isolated from ESP-IDF logging. |
-| RMT NeoPixel | Validated on `dev` | A physical GPIO8 WS2812 has been exercised through Klippy. |
-| ESP32-S3 target | Initial hardware bring-up | Native USB identify/clock/uptime and GPIO48 RMT pass on a dual-USB-C S3 board; full Klippy, rollover, ADC, and reconnect testing remain. |
+| RMT NeoPixel | Validated on `dev` | Physical GPIO8 C3 and GPIO48 S3 LEDs have been exercised through Klippy. |
+| ESP32-S3 target | Klippy bring-up validated | Native USB, identify/clock/uptime, host-service reconnect, and visible GPIO48 RMT pass on a dual-USB-C S3 board; rollover, ADC, and physical USB reconnect testing remain. |
 | Hardware I2C | Builds on `bentobox` | BME280 and SGP40 command support is present; physical sensor validation remains. |
 | LEDC hardware PWM | Builds on `bentobox` | Two independent 25 kHz fan outputs are configured; physical fan validation remains. |
 | Panda Breath heater control | Locked out | Intentionally unavailable until the documented local safety interlocks are implemented and tested. |
@@ -95,10 +95,12 @@ Completed S3 foundation:
   dictionary identities;
 - target-aware GPIO validation, including rejection of the S3 GPIO22–25 gap;
 - explicit S3 Klipper task affinity on core 0;
-- real native-USB protocol, watchdog-stability, and GPIO48 RMT NeoPixel probes.
+- real native-USB protocol and watchdog-stability probes;
+- a dedicated Kalico connection, host-service restart/reconnect, and visible
+  GPIO48 RMT NeoPixel sequence driven through Klippy G-code.
 
-Remaining S3 qualification includes a full Klippy connection, scheduled GPIO
-test, ADC checks, disconnect/reconnect recovery, and the 32-bit rollover soak.
+Remaining S3 qualification includes a scheduled digital GPIO test, ADC checks,
+physical USB disconnect/reconnect recovery, and the 32-bit rollover soak.
 
 ### P2 — Inputs and fan feedback
 
