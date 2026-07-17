@@ -58,9 +58,12 @@ def main() -> int:
         "dictionary",
         nargs="?",
         type=Path,
-        default=Path("build-dev/esp-idf/klipper/klipper.dict"),
+        default=Path("build-esp32c3-dev/esp-idf/klipper/klipper.dict"),
     )
     parser.add_argument("--profile", choices=("dev", "panda", "bentobox"))
+    parser.add_argument(
+        "--target", choices=("esp32c3", "esp32s3"), default="esp32c3"
+    )
     args = parser.parse_args()
 
     with args.dictionary.open(encoding="utf-8") as stream:
@@ -70,13 +73,21 @@ def main() -> int:
     expected_config = {
         "ADC_MAX": 4095,
         "CLOCK_FREQ": 1_000_000,
-        "MCU": "esp32c3",
+        "MCU": args.target,
         "SERIAL_BAUD": 250_000,
     }
     for key, expected in expected_config.items():
         actual = config.get(key)
         if actual != expected:
             raise SystemExit(f"{key}: expected {expected!r}, got {actual!r}")
+
+    pin_ranges = dictionary.get("enumerations", {}).get("pin", {})
+    expected_pin_count = {"esp32c3": 22, "esp32s3": 49}[args.target]
+    if pin_ranges.get("GPIO_NUM_0") != [0, expected_pin_count]:
+        raise SystemExit(
+            f"{args.target} dictionary does not expose GPIO_NUM_0 through "
+            f"GPIO_NUM_{expected_pin_count - 1}"
+        )
 
     commands = set(dictionary.get("commands", {}))
     missing_commands = sorted(REQUIRED_COMMANDS - commands)

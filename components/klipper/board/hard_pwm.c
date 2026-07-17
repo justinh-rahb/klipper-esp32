@@ -83,7 +83,7 @@ struct gpio_pwm gpio_pwm_setup(uint32_t pin, uint32_t cycle_time, uint16_t val) 
     pwm_init();
     
     // Validate parameters
-    if (pin >= GPIO_NUM_MAX) {
+    if (!GPIO_IS_VALID_OUTPUT_GPIO((int)pin)) {
         shutdown("Invalid PWM pin");
     }
     

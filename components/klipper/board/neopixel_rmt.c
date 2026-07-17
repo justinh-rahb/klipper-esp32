@@ -1,4 +1,4 @@
-// Klipper NeoPixel protocol implemented with the ESP32-C3 RMT peripheral.
+// Klipper NeoPixel protocol implemented with the ESP32 RMT peripheral.
 //
 // Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
 //

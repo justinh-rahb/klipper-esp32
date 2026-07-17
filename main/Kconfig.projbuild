@@ -1,12 +1,13 @@
 # Copyright (C) 2026 Justin Hayes <justinh@rahb.ca>
-# ESP32-C3 profile additions are distributed under the GNU GPLv3 license.
+# ESP32-family profile additions are distributed under the GNU GPLv3 license.
 
 menu "Klipper Firmware Configuration"
 
-    menu "ESP32-C3 board profile"
+    menu "ESP32 board features"
         config BENTOBOX_SUPERMINI_HARDWARE
             bool "Enable BentoBox ESP32-C3 SuperMini peripherals"
             default n
+            depends on IDF_TARGET_ESP32C3
             help
                 Build the Klipper I2C and hardware-PWM command backends for
                 an ESP32-C3 SuperMini used as a BentoBox controller. The
@@ -34,7 +35,7 @@ menu "Klipper Firmware Configuration"
         config PANDA_BREATH_HARDWARE
             bool "Enable Panda Breath physical pin mapping"
             default n
-            depends on !BENTOBOX_SUPERMINI_HARDWARE
+            depends on IDF_TARGET_ESP32C3 && !BENTOBOX_SUPERMINI_HARDWARE
             help
                 Enable only when flashing the real Panda Breath controller.
                 The heater relay remains firmware-locked off until the local
@@ -49,12 +50,12 @@ menu "Klipper Firmware Configuration"
                 reference but is not considered safe for powered operation.
 
         config KLIPPER_RMT_NEOPIXEL
-            bool "Enable ESP32-C3 RMT NeoPixel commands"
+            bool "Enable ESP32 RMT NeoPixel commands"
             default n
             depends on !PANDA_BREATH_HARDWARE
             help
                 Expose Klipper's standard NeoPixel command protocol using the
-                ESP32-C3 RMT peripheral. Intended for harmless development
+                ESP32 RMT peripheral. Intended for harmless development
                 board testing; excluded from the Panda hardware profile.
     endmenu
     

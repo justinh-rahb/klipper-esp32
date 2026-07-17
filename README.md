@@ -1,14 +1,15 @@
-# Klipper MCU firmware for ESP32-C3
+# Klipper MCU firmware for ESP32-C3 and ESP32-S3
 
-An experimental ESP-IDF port of Klipper's MCU firmware for ESP32-C3 boards.
+An experimental ESP-IDF port of Klipper's MCU firmware for ESP32-family boards.
 It began as a Panda Breath chamber-heater controller, but the shared MCU core
 is now independent of that product. Hardware-specific behavior is selected by
-a build profile.
+a build profile, while the chip is selected independently as a build target.
 
 The ESP32-C3 adaptation, board profiles, and validation tooling in this
-repository are maintained by Justin Hayes. The port currently supports
+repository, including the ESP32-S3 target port, are maintained by Justin Hayes.
+The port currently supports
 Klipper's base protocol, scheduled digital output,
-ADC sampling, native USB Serial/JTAG or UART transport, ESP32-C3 RMT NeoPixel
+ADC sampling, native USB Serial/JTAG or UART transport, ESP32 RMT NeoPixel
 output, hardware I2C, and LEDC hardware PWM. It is based on
 [`nikhil-robinson/klipper_esp32`](https://github.com/nikhil-robinson/klipper_esp32)
 and its Klipper fork.
@@ -17,12 +18,13 @@ and its Klipper fork.
 
 | Profile | Target | Transport | Extra peripherals |
 |---|---|---|---|
-| `dev` | Generic ESP32-C3 development board | Native USB Serial/JTAG | GPIO8 NeoPixel |
+| `dev` | Generic ESP32-C3 or ESP32-S3 development board | Native USB Serial/JTAG | RMT NeoPixel |
 | `bentobox` | ESP32-C3 SuperMini BentoBox controller | Native USB Serial/JTAG | I2C, two hardware-PWM fans, GPIO8 NeoPixel |
 | `panda` | BIQU Panda Breath controller | UART0 through CH340K | Relay lockout and board-specific safety foundation |
 
 Example Klipper configuration lives in [`config/`](config/). Profile-specific
-ESP-IDF defaults live in [`profiles/`](profiles/). Product code is isolated in
+ESP-IDF defaults live in [`profiles/`](profiles/) and chip defaults in
+[`targets/`](targets/). Product code is isolated in
 [`components/klipper/board_profiles/`](components/klipper/board_profiles/).
 
 ## Validation status
@@ -32,6 +34,14 @@ clock synchronization, watchdog continuity, a physical GPIO8 WS2812, and a
 real soak across the 32-bit timer rollover at 1 MHz. The rollover run stayed
 connected through the 71.6-minute boundary and accepted a post-rollover status
 LED command.
+
+Initial ESP32-S3 hardware bring-up is also complete on a dual-USB-C
+ESP32-S3-WROOM-1 board with 16 MB flash and 8 MB embedded PSRAM. The native
+USB Serial/JTAG transport completed identify, clock, uptime, configuration,
+and watchdog-stability probes, and the onboard GPIO48 addressable RGB accepted
+an RMT frame. The S3 scheduler is deliberately pinned to core 0. A full Klippy
+connection, disconnect/reconnect test, ADC validation, and rollover soak are
+still required before the S3 meets the roadmap's complete support definition.
 
 The timer bridge treats Klipper clocks as wrapping 32-bit values over the
 ESP32-C3's 64-bit GPTimer. Slightly overdue timestamps are clamped to an
@@ -62,7 +72,7 @@ only as a reference while a hardware-timed replacement is developed.
 
 Requirements:
 
-- ESP-IDF 5.3.x with the ESP32-C3 RISC-V toolchain;
+- ESP-IDF 5.3.x with the toolchain for each selected target;
 - Python 3;
 - the Klipper submodule initialized.
 
@@ -70,20 +80,25 @@ Requirements:
 git submodule update --init --recursive
 source ~/esp/esp-idf/export.sh
 ./build.sh dev
+./build.sh dev esp32s3
 ./build.sh bentobox
 ./build.sh panda
 ```
 
-Each invocation uses a separate `build-<profile>/` directory and validates the
-generated Klipper protocol dictionary. The wrapper intentionally invokes
-ESP-IDF twice: pass one generates Klipper's compile-time request source and
-pass two compiles it into the final image.
+Omitting the target keeps the existing ESP32-C3 default. Only the generic
+`dev` profile is portable to S3; the `bentobox` and `panda` product profiles
+are rejected for non-C3 targets.
+
+Each invocation uses a separate `build-<target>-<profile>/` directory and
+validates the generated Klipper protocol dictionary. The wrapper intentionally
+invokes ESP-IDF twice: pass one generates Klipper's compile-time request source
+and pass two compiles it into the final image.
 
 Artifacts include:
 
-- `build-<profile>/klipper_esp32c3.bin`
-- `build-<profile>/klipper_esp32c3.elf`
-- `build-<profile>/esp-idf/klipper/klipper.dict`
+- `build-<target>-<profile>/klipper_<target>.bin`
+- `build-<target>-<profile>/klipper_<target>.elf`
+- `build-<target>-<profile>/esp-idf/klipper/klipper.dict`
 
 The dictionary is embedded in the MCU image and transferred during Klipper's
 identify handshake; it does not need to be copied to the host.
@@ -91,7 +106,7 @@ identify handshake; it does not need to be copied to the host.
 ## Flash and probe a development board
 
 ```sh
-idf.py -B build-dev -p /dev/cu.usbmodemXXXX flash
+idf.py -B build-esp32c3-dev -p /dev/cu.usbmodemXXXX flash
 python3 probe_mcu.py /dev/cu.usbmodemXXXX
 ```
 
@@ -103,6 +118,23 @@ for the dev-only RMT NeoPixel test.
 For a full Klippy connection on Linux, start from [`config/dev.cfg`](config/dev.cfg).
 ESP32-C3 pin names are dictionary enumerations such as `GPIO_NUM_8`; names like
 `gpio8` are not accepted.
+
+For the tested S3 board, plug into the connector marked **USB**, not **COM**,
+then build, flash, and probe with:
+
+```sh
+./build.sh dev esp32s3
+idf.py -B build-esp32s3-dev -p /dev/cu.usbmodemXXXX flash
+python3 probe_mcu.py /dev/cu.usbmodemXXXX --neopixel-pin 48
+```
+
+Start the host configuration from [`config/dev-s3.cfg`](config/dev-s3.cfg).
+The tested board follows the
+[original ESP32-S3-DevKitC-1 layout](https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1-v1.0.html),
+whose RGB LED is on GPIO48. Espressif's
+[later v1.1 board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html)
+moved it to GPIO38. S3 pin names use the same `GPIO_NUM_<n>` form; GPIO22
+through GPIO25 do not exist on S3 and are rejected by the firmware if requested.
 
 ## BentoBox profile
 
@@ -132,7 +164,7 @@ dictionary.
 
 The project targets dependable non-motion secondary-MCU use rather than every
 Klipper command. See [`ROADMAP.md`](ROADMAP.md) for the planned input, counter,
-ESP32-S3 and original ESP32 ports, SPI, sensor, and experimental
+original ESP32 port, further ESP32-S3 validation, SPI, sensor, and experimental
 single-extruder work.
 
 ## License

@@ -6,9 +6,10 @@ Distributed under the terms of the GNU GPLv3 license.
 ## Project direction
 
 The goal is a dependable ESP32-family **secondary Klipper MCU** for sensors,
-fans, LEDs, buttons, and printer accessories. ESP32-C3 is the current reference
-target; ESP32-S3 and the original ESP32 are planned targets. It is not intended
-to become a general-purpose motion controller.
+fans, LEDs, buttons, and printer accessories. ESP32-C3 is the reference target;
+ESP32-S3 has completed initial hardware bring-up, and the original ESP32 remains
+a planned target. It is not intended to become a general-purpose motion
+controller.
 
 The project will implement the Klipper command families that unlock useful
 peripherals on those three chips. It will not chase command-count parity with
@@ -35,6 +36,7 @@ The current generated dictionaries contain 17 commands for `panda`, 20 for
 | Analog input | Firmware available | Physical ADC range, calibration, and fault behavior still need profile-specific validation. |
 | UART and native USB Serial/JTAG transports | Validated | Profile selected; Klipper binary framing is isolated from ESP-IDF logging. |
 | RMT NeoPixel | Validated on `dev` | A physical GPIO8 WS2812 has been exercised through Klippy. |
+| ESP32-S3 target | Initial hardware bring-up | Native USB identify/clock/uptime and GPIO48 RMT pass on a dual-USB-C S3 board; full Klippy, rollover, ADC, and reconnect testing remain. |
 | Hardware I2C | Builds on `bentobox` | BME280 and SGP40 command support is present; physical sensor validation remains. |
 | LEDC hardware PWM | Builds on `bentobox` | Two independent 25 kHz fan outputs are configured; physical fan validation remains. |
 | Panda Breath heater control | Locked out | Intentionally unavailable until the documented local safety interlocks are implemented and tested. |
@@ -55,7 +57,7 @@ The current generated dictionaries contain 17 commands for `panda`, 20 for
 - Separate peripheral feature switches from product profiles. A generic board
   should be able to enable I2C, hardware PWM, SPI, or NeoPixel independently.
 
-### P1 — ESP32-S3 and original ESP32 targets
+### P1 — Finish ESP32-S3 and add original ESP32
 
 Make the chip target independent from the product profile before adding many
 more peripheral command families. In particular, a `dev` role should be
@@ -86,6 +88,17 @@ Each target needs a real development board, a Klippy connection test, a
 disconnect/reconnect test, and its own 32-bit clock-rollover soak before it is
 called supported. USB OTG on S3 is not required for initial support; native USB
 Serial/JTAG is the first transport target.
+
+Completed S3 foundation:
+
+- target/profile-separated C3 and S3 builds, sdkconfigs, artifacts, and MCU
+  dictionary identities;
+- target-aware GPIO validation, including rejection of the S3 GPIO22–25 gap;
+- explicit S3 Klipper task affinity on core 0;
+- real native-USB protocol, watchdog-stability, and GPIO48 RMT NeoPixel probes.
+
+Remaining S3 qualification includes a full Klippy connection, scheduled GPIO
+test, ADC checks, disconnect/reconnect recovery, and the 32-bit rollover soak.
 
 ### P2 — Inputs and fan feedback
 

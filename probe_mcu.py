@@ -4,7 +4,7 @@
 
 """Perform a minimal Klipper identify exchange over a serial device.
 
-This deliberately avoids Klipper's Linux-only host C helper so the ESP32-C3
+This deliberately avoids Klipper's Linux-only host C helper so an ESP32
 development image can be smoke-tested from macOS.
 """
 
@@ -154,7 +154,7 @@ def main():
     )
     args = parser.parse_args()
 
-    # Native ESP32-C3 USB uses DTR/RTS for reset and bootloader entry. Open
+    # Native ESP32 USB uses DTR/RTS for reset and bootloader entry. Open
     # with both inactive so a protocol probe cannot hold the MCU in reset.
     port = serial.Serial(
         baudrate=args.baud, timeout=0.05, exclusive=True, port=None

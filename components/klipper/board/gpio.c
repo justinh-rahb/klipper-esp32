@@ -1,7 +1,7 @@
 // GPIO functions on esp32
 //
 // Copyright (C) 2024  Nikhil Robinson <nikhil@techprogeny.com>
-// Copyright (C) 2026  Justin Hayes <justinh@rahb.ca> (ESP32-C3 modifications)
+// Copyright (C) 2026  Justin Hayes <justinh@rahb.ca> (ESP32-family modifications)
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
@@ -28,7 +28,7 @@
  * Pin mappings
  ****************************************************************/
 
-DECL_ENUMERATION_RANGE("pin", "GPIO_NUM_0", 0, GPIO_NUM_MAX-1);
+DECL_ENUMERATION_RANGE("pin", "GPIO_NUM_0", 0, GPIO_NUM_MAX);
 
 gpio_dev_t *hw = &GPIO;
 
@@ -38,7 +38,7 @@ gpio_dev_t *hw = &GPIO;
 
 struct gpio_out gpio_out_setup(uint32_t gpio_num, uint32_t val) {
   
-  if (gpio_num >= GPIO_NUM_MAX) {
+  if (!GPIO_IS_VALID_OUTPUT_GPIO((int)gpio_num)) {
     shutdown("Invalid GPIO pin");
   }
   
@@ -82,7 +82,8 @@ void gpio_out_write(struct gpio_out g, uint32_t val) {
 }
 
 struct gpio_in gpio_in_setup(uint8_t pin, int8_t pull_up) {
-  if (pin >= GPIO_NUM_MAX) {
+  if (pin >= GPIO_NUM_MAX
+      || !((1ULL << pin) & SOC_GPIO_VALID_GPIO_MASK)) {
     shutdown("Invalid GPIO pin");
   }
   

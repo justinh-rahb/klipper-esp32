@@ -1,10 +1,10 @@
-// ESP32-C3 Klipper console using direct UART or USB Serial/JTAG drivers.
+// ESP32 Klipper console using direct UART or USB Serial/JTAG drivers.
 // Direct driver access keeps ESP-IDF VFS and line-ending translation away
 // from Klipper's binary framing.
 //
 // Based on Klipper's Linux console by Kevin O'Connor and contributors.
 // Copyright (C) 2024 Nikhil Robinson <nikhil@techprogeny.com>
-// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca> (ESP32-C3 adaptation)
+// Copyright (C) 2026 Justin Hayes <justinh@rahb.ca> (ESP32-family adaptation)
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 

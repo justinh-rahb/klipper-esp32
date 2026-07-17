@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU GPLv3 license.
 
 set(SOURCES
-    # Shared ESP32-C3 board layer
+    # Shared ESP32-family board layer
     board/adc.c
     board/console.c
     board/gpio.c
