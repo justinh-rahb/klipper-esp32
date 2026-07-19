@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
-# USB disconnect/reconnect recovery test for the Panda Breath MCU.
+# USB re-enumeration / reboot-recovery test for the Panda Breath MCU.
 #
 # Uses the kernel USB "authorized" flag to force a genuine host-side
-# disconnect (device removed, ttyUSB0 disappears) and reconnect
-# (re-enumeration). Power is not cut, so the MCU keeps running and its
-# uptime must advance across the gap, proving the host re-identifies a
-# still-live MCU.
+# disconnect (the device is removed and its ttyUSB node disappears) and then a
+# reconnect (re-enumeration). This proves the host cleanly re-enumerates the
+# bridge and re-identifies the MCU afterward.
+#
+# It does NOT prove the MCU stayed alive across the gap: this board auto-resets
+# the MCU whenever the serial port is opened, so every identify starts a fresh
+# MCU session. Uptime is therefore only checked *within* a session (it must
+# advance) to confirm the re-identified MCU is actually running — cross-session
+# uptime is not continuous by design.
 
+import glob
+import os
 import subprocess
 import sys
 import time
@@ -15,18 +22,45 @@ import serial
 
 import probe_mcu as pm
 
-DEV = "/dev/ttyUSB0"
-USBDEV = "2-2"  # sysfs USB device node for the CH340 bridge
+CH340_VENDOR = "1a86"
 
 
-def identify_uptime(tag):
+def resolve_ch340(dev=None):
+    """Locate the CH340 serial port and its sysfs USB device node.
+
+    Returns (tty_path, usb_node) e.g. ("/dev/ttyUSB0", "2-2"). Verifies the
+    bridge really is a CH340 (idVendor 1a86) rather than assuming a fixed node.
+    """
+    candidates = [dev] if dev else sorted(glob.glob("/dev/ttyUSB*"))
+    for tty in candidates:
+        if not tty or not os.path.exists(tty):
+            continue
+        node = os.path.realpath("/sys/class/tty/%s/device" % os.path.basename(tty))
+        # Ascend from the tty's device link to the USB device dir (has idVendor).
+        for _ in range(8):
+            vid_path = os.path.join(node, "idVendor")
+            if os.path.exists(vid_path):
+                with open(vid_path) as f:
+                    vendor = f.read().strip()
+                if vendor == CH340_VENDOR:
+                    return tty, os.path.basename(node)
+                break  # a USB device, but not the CH340 — try the next tty
+            parent = os.path.dirname(node)
+            if parent == node:
+                break
+            node = parent
+    raise SystemExit("no CH340 (%s) USB-serial device found (checked %s)"
+                     % (CH340_VENDOR, ", ".join(candidates) or "no ttyUSB*"))
+
+
+def identify_uptime(dev, tag):
     """Identify the MCU and confirm liveness by reading uptime twice within the
     same session (this board auto-resets on port-open, so cross-session uptime
     is not continuous; within-session advance proves the MCU is running)."""
     p = serial.Serial(baudrate=250000, timeout=0.05, exclusive=True, port=None)
     p.dtr = False
     p.rts = False
-    p.port = DEV
+    p.port = dev
     p.open()
     time.sleep(1.0)
     p.reset_input_buffer()
@@ -47,49 +81,68 @@ def identify_uptime(tag):
     return live and not cfg["is_shutdown"]
 
 
-def set_authorized(val):
+def set_authorized(usb_node, val):
     subprocess.run(
-        ["sudo", "sh", "-c", f"echo {val} > /sys/bus/usb/devices/{USBDEV}/authorized"],
+        ["sudo", "sh", "-c",
+         f"echo {val} > /sys/bus/usb/devices/{usb_node}/authorized"],
         check=True)
 
 
-def wait_for_dev(present, timeout=10.0):
-    import os
+def wait_for_dev(dev, present, timeout=10.0):
     end = time.monotonic() + timeout
     while time.monotonic() < end:
-        if os.path.exists(DEV) == present:
+        if os.path.exists(dev) == present:
             return True
         time.sleep(0.2)
     return False
 
 
 def main():
-    print("=== TEST: USB disconnect/reconnect recovery ===")
-    ok_before = identify_uptime("before")
+    dev_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    dev, usb_node = resolve_ch340(dev_arg)
+    print(f"=== TEST: USB re-enumeration / reboot recovery "
+          f"({dev}, usb node {usb_node}) ===")
+    ok_before = identify_uptime(dev, "before")
 
-    print("  deauthorizing USB device (simulated disconnect) ...")
-    set_authorized(0)
-    if not wait_for_dev(present=False):
-        print("  WARN: ttyUSB0 did not disappear")
-    else:
-        print("  ttyUSB0 removed (host sees disconnect)")
-    time.sleep(2.0)
+    deauthorized = False
+    try:
+        print("  deauthorizing USB device (forced disconnect) ...")
+        set_authorized(usb_node, 0)
+        deauthorized = True
+        if not wait_for_dev(dev, present=False):
+            print(f"  WARN: {dev} did not disappear")
+        else:
+            print(f"  {dev} removed (host sees disconnect)")
+        time.sleep(2.0)
 
-    print("  reauthorizing USB device (reconnect) ...")
-    set_authorized(1)
-    if not wait_for_dev(present=True):
-        print("  RESULT: FAIL — ttyUSB0 did not return after reconnect")
-        sys.exit(1)
-    print("  ttyUSB0 re-enumerated")
-    time.sleep(1.5)  # settle for udev to set permissions
+        print("  reauthorizing USB device (reconnect) ...")
+        set_authorized(usb_node, 1)
+        deauthorized = False
+        if not wait_for_dev(dev, present=True):
+            print(f"  RESULT: FAIL — {dev} did not return after reconnect")
+            return 1
+        print(f"  {dev} re-enumerated")
+        time.sleep(1.5)  # settle for udev to set permissions
 
-    ok_after = identify_uptime("after")
+        ok_after = identify_uptime(dev, "after")
 
-    print("  (note: this board auto-resets the MCU on port-open, so uptime "
-          "restarts each session by design)")
-    print("  RESULT:", "PASS — MCU re-identified and running after reconnect"
-          if (ok_before and ok_after) else "FAIL")
+        print("  (this board auto-resets the MCU on port-open, so the 'after' "
+              "session is a fresh boot — this proves re-enumeration + reboot "
+              "recovery, not survival across the disconnect)")
+        result = ok_before and ok_after
+        print("  RESULT:",
+              "PASS — device re-enumerated and MCU re-identified and running"
+              if result else "FAIL")
+        return 0 if result else 1
+    finally:
+        # Never leave the device deauthorized, even if the test aborts.
+        if deauthorized:
+            try:
+                set_authorized(usb_node, 1)
+                print("  (cleanup) re-authorized USB device")
+            except Exception as e:
+                print(f"  WARN: failed to re-authorize {usb_node}: {e}")
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

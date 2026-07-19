@@ -33,14 +33,24 @@ def api(sock, method, params=None, _id=[0]):
     sock.sendall(json.dumps(msg).encode() + b"\x03")
     buf = b""
     deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        buf += sock.recv(4096)
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"no API reply for {method}")
+        # Bound the blocking recv so a silent MCU/host can't hang it forever.
+        sock.settimeout(remaining)
+        try:
+            data = sock.recv(4096)
+        except socket.timeout:
+            raise TimeoutError(f"no API reply for {method}")
+        if not data:
+            raise ConnectionError(f"API socket closed awaiting {method}")
+        buf += data
         while b"\x03" in buf:
             chunk, buf = buf.split(b"\x03", 1)
             resp = json.loads(chunk)
             if resp.get("id") == msg["id"]:
                 return resp
-    raise TimeoutError(f"no API reply for {method}")
 
 
 def wait_ready(timeout=45):
@@ -78,7 +88,7 @@ def main():
             print("  RESULT: FAIL — Klipper did not reach Ready")
             tail = "\n".join(logtext.splitlines()[-25:])
             print("  --- klippy.log tail ---\n" + tail)
-            return
+            return 1
         # Pull the MCU/version line and clock-sync confirmation from the log
         for line in logtext.splitlines():
             if "Loaded MCU" in line or "mcu 'mcu'" in line or "Starting Klippy" in line:
@@ -87,6 +97,7 @@ def main():
 
         # Query temperatures + LED via API
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(5.0)
         s.connect(UDS)
         info = api(s, "info")
         print(f"  API info: klipper on {info['result'].get('cpu_info','?')[:40]}")
@@ -108,6 +119,7 @@ def main():
         ok = (tc is not None and tp is not None)
         print("  RESULT:", "PASS — full Klippy host stack connected and operated the MCU"
               if ok else "PARTIAL (connected but temps missing)")
+        return 0 if ok else 1
     finally:
         proc.terminate()
         try:
@@ -117,4 +129,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

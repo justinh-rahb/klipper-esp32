@@ -100,7 +100,9 @@ def test_digital(port, proto, seq, rb, freq, timeout):
     dec, seq = pm.request(port, proto, seq, "get_config", "config", timeout, rb)
     print(f"  finalize: is_config={dec['is_config']} crc={dec['crc']} "
           f"is_shutdown={dec['is_shutdown']} move_count={dec['move_count']}")
-    assert dec["is_config"] and not dec["is_shutdown"], "config did not finalize cleanly"
+    if not (dec["is_config"] and not dec["is_shutdown"]):
+        print("  RESULT: FAIL (config did not finalize cleanly)")
+        return seq, False
 
     # Immediate blink of each LED (visible)
     print("  immediate update_digital_out blink K1,K2,K3 ...")
@@ -124,9 +126,11 @@ def test_digital(port, proto, seq, rb, freq, timeout):
     # Confirm still alive and not shut down
     dec, seq = pm.request(port, proto, seq, "get_config", "config", timeout, rb)
     print(f"  post-schedule: is_config={dec['is_config']} is_shutdown={dec['is_shutdown']}")
-    assert not dec["is_shutdown"], "MCU shut down during scheduled digital output"
+    if dec["is_shutdown"]:
+        print("  RESULT: FAIL (MCU shut down during scheduled digital output)")
+        return seq, False
     print("  RESULT: PASS")
-    return seq
+    return seq, True
 
 
 def wait_for_adc(port, proto, oid, timeout, rb):
@@ -172,8 +176,9 @@ def test_adc(port, proto, seq, rb, freq, timeout):
         volts = avg / 4095.0 * 3.3
         results[oid] = avg
         print(f"  {name}: sum={summed} avg={avg:.1f}/4095  ~{volts:.3f} V (at 3.3V ref)")
-    print("  RESULT:", "PASS" if len(results) == 2 else "PARTIAL")
-    return seq
+    ok = len(results) == 2
+    print("  RESULT:", "PASS" if ok else "PARTIAL")
+    return seq, ok
 
 
 def test_relay_lockout(device, baud, open_delay, timeout):
@@ -206,8 +211,9 @@ def test_relay_lockout(device, baud, open_delay, timeout):
             print(f"  GPIO18 high -> {dec['#name']} reason={reason!r}")
             ok = reason == "Panda heater safety interlocks not armed"
             print("  RESULT:", "PASS" if ok else f"UNEXPECTED (id={sid})")
-        else:
-            print(f"  no shutdown observed (got {dec}) -> RESULT: FAIL (lockout not enforced!)")
+            return ok
+        print(f"  no shutdown observed (got {dec}) -> RESULT: FAIL (lockout not enforced!)")
+        return False
 
 
 def main():
@@ -223,21 +229,32 @@ def main():
     print("resetting MCU to a clean state ...")
     reset_mcu(args.device, args.baud, args.open_delay, args.timeout)
 
+    results = []
     port = open_port(args.device, args.baud, args.open_delay)
     with port:
         proto, seq, rb, d = identify(port, args.timeout)
         freq = int(d["config"]["CLOCK_FREQ"])
         print(f"identified MCU={d['config'].get('MCU')} CLOCK_FREQ={freq} "
               f"commands={len(d.get('commands', {}))}")
-        seq = test_digital(port, proto, seq, rb, freq, args.timeout)
-        seq = test_adc(port, proto, seq, rb, freq, args.timeout)
+        seq, ok = test_digital(port, proto, seq, rb, freq, args.timeout)
+        results.append(("digital", ok))
+        seq, ok = test_adc(port, proto, seq, rb, freq, args.timeout)
+        results.append(("adc", ok))
 
     if not args.skip_relay:
         reset_mcu(args.device, args.baud, args.open_delay, args.timeout)
-        test_relay_lockout(args.device, args.baud, args.open_delay, args.timeout)
+        ok = test_relay_lockout(args.device, args.baud, args.open_delay, args.timeout)
+        results.append(("relay_lockout", ok))
         # Leave the MCU clean for any subsequent soak test
         reset_mcu(args.device, args.baud, args.open_delay, args.timeout)
 
+    failed = [name for name, ok in results if not ok]
+    print(f"\n=== SUMMARY: {len(results) - len(failed)}/{len(results)} passed ===")
+    if failed:
+        print("  FAILED:", ", ".join(failed))
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
