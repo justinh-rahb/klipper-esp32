@@ -23,22 +23,41 @@ import msgproto  # noqa: E402
 
 
 def read_packet(port, parser, deadline, data):
-    while time.monotonic() < deadline:
-        data.extend(port.read(256))
+    # Parse buffered bytes first, then block only for the *next* byte and drain
+    # whatever else has already arrived. Reading a fixed block (read(256)) under
+    # a per-read timeout would wait out that timeout whenever a reply is shorter
+    # than the block, inflating any latency measured on top of this reader; a
+    # one-byte-first read returns as soon as the reply actually arrives.
+    while True:
+        # 1. Return a packet already sitting in the buffer without touching the
+        #    port. Klipper's five-second stats message can share a read with a
+        #    requested reply, so any trailing frame stays buffered for next call.
         while data:
             packet_len = parser.check_packet(data)
             if packet_len > 0:
-                # Keep any following frame buffered. Klipper's five-second
-                # stats message can share a USB read with a requested reply.
                 packet = bytes(data[:packet_len])
                 del data[:packet_len]
                 return packet
             if packet_len < 0:
                 del data[0]
                 continue
-            break
-        time.sleep(0.005)
-    raise TimeoutError("timed out waiting for a valid Klipper packet")
+            break  # incomplete frame; need more bytes
+
+        # 2. Nothing complete buffered — wait for the next byte, bounded by the
+        #    overall deadline so a stalled link still times out.
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("timed out waiting for a valid Klipper packet")
+        port.timeout = remaining
+        chunk = port.read(1)
+        if not chunk:
+            continue  # read timed out at the deadline; loop re-checks and raises
+        data.extend(chunk)
+
+        # 3. Drain the rest of this burst without blocking (it already arrived).
+        waiting = port.in_waiting
+        if waiting:
+            data.extend(port.read(waiting))
 
 
 def identify(port, timeout, receive_buffer):
