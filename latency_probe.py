@@ -164,18 +164,17 @@ def main():
 
         arrivals, seq = burst_test(port, proto, seq, rb, args.burst, args.timeout)
         print(f"\n-- burst: {args.burst} get_clock written back-to-back --")
-        if arrivals:
-            arr_ms = [a * 1e3 for a in arrivals]
-            spread = arr_ms[-1] - arr_ms[0]
-            print(f"  replies received: {len(arrivals)}/{args.burst}")
-            print(f"  first arrival: {arr_ms[0]:.1f} ms  last: {arr_ms[-1]:.1f} ms  "
-                  f"spread: {spread:.1f} ms")
-            verdict = ("shared pipeline delay (transport)" if spread < arr_ms[0]
-                       else "per-command cost")
-            print(f"  interpretation: {verdict}")
-        else:
-            print("  no replies — burst FAILED")
+        print(f"  replies received: {len(arrivals)}/{args.burst}")
+        if len(arrivals) != args.burst:
+            print(f"  burst FAILED — only {len(arrivals)}/{args.burst} replies")
             sys.exit(1)
+        arr_ms = [a * 1e3 for a in arrivals]
+        spread = arr_ms[-1] - arr_ms[0]
+        print(f"  first arrival: {arr_ms[0]:.1f} ms  last: {arr_ms[-1]:.1f} ms  "
+              f"spread: {spread:.1f} ms")
+        verdict = ("shared pipeline delay (transport)" if spread < arr_ms[0]
+                   else "per-command cost")
+        print(f"  interpretation: {verdict}")
 
         if not full_ms:
             print("no RTT samples collected — FAILED")

@@ -179,7 +179,7 @@ auto-resolves the CH340 bridge):
 ```sh
 python3 hw_test.py /dev/ttyUSB0          # digital-out, ADC, and heater-relay lockout
 python3 latency_probe.py /dev/ttyUSB0    # true serial RTT + back-to-back burst timing
-python3 rollover_soak.py                 # ~71 min 32-bit timer rollover soak
+python3 rollover_soak.py /dev/ttyUSB0     # ~71 min 32-bit timer rollover soak
 python3 reconnect_test.py                # USB re-enumeration / reboot recovery (needs sudo)
 python3 run_klippy_test.py config/dev-panda-klippy.cfg   # full real-Klippy host connection
 ```

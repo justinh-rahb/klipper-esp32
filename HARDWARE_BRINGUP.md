@@ -26,7 +26,7 @@ Date: 2026-07-18. Rig: BIQU Panda Breath board on `/dev/ttyUSB0`, tested by Clau
 
 Independent clock health check: 66 rapid `get_clock` samples over 10 s → **0 monotonic anomalies**, rate ≈ 1 MHz.
 
-## Klippy host connection — full stack runs; clock-sync blocked by CH340 UART latency
+## Klippy host connection — full stack runs; clock-sync blocked by CH340/host UART latency
 Ran a real Klippy host (venv; `chelper` compiled) in two roles. **GPIO18 never configured** in either.
 
 **Primary role** (ESP32 as `[mcu]`): connects, loads dict, `Configured MCU (1024 moves)`, but the primary clock-sync estimator **diverges** (runaway ~2³² diff after config) → never `Ready`.
@@ -37,13 +37,14 @@ Ran a real Klippy host (venv; `chelper` compiled) in two roles. **GPIO18 never c
 - ✅ **Panda ADC data flows to the host** (`analog_in_state` values received for both channels).
 - ❌ Still not `Ready`: under continuous traffic the link degrades into a retransmit / `bytes_invalid` storm (`srtt≈70 ms`, `rttvar≈39 ms`, `rto` saturates) and Klippy eventually loses communication.
 
-**Root cause = the CH340 UART transport latency, not firmware.** Ruled out step by step:
+**Evidence points to the CH340 / host UART path, not firmware.** Ruled out step by step:
 - MCU clock proven correct: 71-min rollover soak + 66-sample rapid poll, 0 anomalies.
 - **Firmware exonerated by a burst test:** 8 `get_clock`s written back-to-back (0.2 ms) return with all 8 replies bunched within ~5 ms *after* one shared ~78 ms delay — so the delay is a fixed pipeline latency, not per-command firmware work. (FreeRTOS tick 1 kHz, `irq_wait` ≤5 ms, `console_io_task` polls UART every loop.)
 - **Measured true RTT over CH340 @ 250 k (`latency_probe.py`, one-byte-first reader): ~80 ms, ~1 ms jitter, unimodal.** An earlier "bimodal 45/90 ms" reading was a packet-reader artifact — the old reader did a fixed `read(256)` under a 50 ms per-read timeout, quantizing the true ~80 ms latency into ~50 ms buckets. The corrected reader (`probe_mcu.read_packet`, buffered-first / one-byte-first) removes that and shows a consistent ~80 ms.
 - **Under real Klippy load the link collapses:** `srtt≈70 ms`, `rttvar≈39 ms`, `rto` saturates at 5 s, `receive_seq` stalls, and `bytes_retransmit` / `bytes_invalid` climb steadily until the host declares "Lost communication". The `bytes_invalid` is a *symptom* of the retransmit storm (overlapping/duplicated frames desync the parser), not independent corruption — the ~80 ms RTT exceeds Klipper's clock-sync RTO during the initial handshake, so it retransmits before replies arrive and never converges.
 - **Baud is not the cause:** rebuilt and retested at **115200** — RTT unchanged (~79.5 ms) and real Klippy fails identically (`srtt≈71 ms`, same retransmit/`bytes_invalid` storm, never `Ready`). The ~80 ms delay is fixed CH340 buffering, independent of serialization rate, so lowering the baud does not help.
-- Ruled out on the host/link side: USB extension cable removed (no change), a different USB port on the same host (no change), a second USB cable (no change), serial `ASYNC_LOW_LATENCY` (no effect; ch341 exposes no `latency_timer`), USB autosuspend (already disabled, device stays active), realtime Linux primary `-r` (no change), lower baud (115200, no change). Only a different bridge chip or host machine remains untested.
+- Ruled out on the host/link side: USB extension cable removed (no change), a different USB port on the same host (no change), a second USB cable (no change), serial `ASYNC_LOW_LATENCY` (no effect; ch341 exposes no `latency_timer`), USB autosuspend (already disabled, device stays active), realtime Linux primary `-r` (no change), lower baud (115200, no change).
+- **Not yet isolated:** the CH340 *chip* vs. the host's ch341 driver/USB stack. Ruling that out needs a CH340 loopback, a direct UART capture (logic analyzer on TX/RX), a different bridge chip, or a different host — none of which we have here. So "CH340/host UART path" is as far as the evidence takes us; the ~80 ms is attributable to that path but not yet to the chip alone.
 
 **Architectural constraint:** the panda is locked to CH340 UART — on the C3, native USB Serial/JTAG (low latency, the path the README validated as a Klippy secondary) is on GPIO18/19, and **GPIO18 is the heater relay**. So the panda cannot use native USB.
 
@@ -56,7 +57,7 @@ Ran a real Klippy host (venv; `chelper` compiled) in two roles. **GPIO18 never c
 
 ## Repo issues found (for the PR)
 1. `config/panda-breath.cfg` uses `sensor_type: NTC 100K beta 3950`, which is **not a defined sensor type** in this Klipper fork (built-ins include `Generic 3950`, `EPCOS 100K B57560G104F`, …). Would fail against a real Klippy as written.
-2. **CH340 UART transport's fixed ~80 ms latency blocks Klipper clock-sync from reaching `Ready`** — in both primary and secondary roles — even though all one-shot protocol ops work. Re-measured with a corrected reader (`latency_probe.py`): ~80 ms, ~1 ms jitter, unimodal — the earlier "45/90 ms bimodal" was a packet-reader artifact (now fixed). Baud-independent (115200 tested, identical). The MCU clock is provably correct; the bottleneck is the bridge link. Needs a CH340 latency-timer/driver fix, a different bridge, or a different host. Native USB is unavailable (GPIO18 = relay).
+2. **CH340 UART transport's fixed ~80 ms latency blocks Klipper clock-sync from reaching `Ready`** — in both primary and secondary roles — even though all one-shot protocol ops work. Re-measured with a corrected reader (`latency_probe.py`): ~80 ms, ~1 ms jitter, unimodal — the earlier "45/90 ms bimodal" was a packet-reader artifact (now fixed). Baud-independent (115200 tested, identical). The MCU clock is provably correct; the bottleneck is the CH340/host UART path (chip-vs-driver not yet isolated — needs a loopback, direct UART capture, a different bridge, or a different host). Native USB is unavailable (GPIO18 = relay).
 
 ## Test harnesses added (candidates for the PR)
 - `hw_test.py` — digital-out, ADC, and heater-lockout tests over the Klipper protocol.

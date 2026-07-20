@@ -109,10 +109,12 @@ def main():
         print("  deauthorizing USB device (forced disconnect) ...")
         set_authorized(usb_node, 0)
         deauthorized = True
-        if not wait_for_dev(dev, present=False):
-            print(f"  WARN: {dev} did not disappear")
-        else:
+        disappeared = wait_for_dev(dev, present=False)
+        if disappeared:
             print(f"  {dev} removed (host sees disconnect)")
+        else:
+            # No disconnect actually happened — the test proved nothing.
+            print(f"  FAIL: {dev} never disappeared — no real disconnect to recover from")
         time.sleep(2.0)
 
         print("  reauthorizing USB device (reconnect) ...")
@@ -129,9 +131,9 @@ def main():
         print("  (this board auto-resets the MCU on port-open, so the 'after' "
               "session is a fresh boot — this proves re-enumeration + reboot "
               "recovery, not survival across the disconnect)")
-        result = ok_before and ok_after
+        result = disappeared and ok_before and ok_after
         print("  RESULT:",
-              "PASS — device re-enumerated and MCU re-identified and running"
+              "PASS — device disconnected, re-enumerated, and MCU re-identified"
               if result else "FAIL")
         return 0 if result else 1
     finally:

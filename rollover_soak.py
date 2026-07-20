@@ -17,7 +17,8 @@ import serial
 
 import probe_mcu as pm
 
-DEV = "/dev/ttyUSB0"
+# Serial device: first CLI arg, else the common default.
+DEV = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyUSB0"
 LED = "GPIO_NUM_6"   # button-backlight LED, safe output
 POLL = 15.0
 MAX_SECONDS = 4900   # safety cap (~81 min)
