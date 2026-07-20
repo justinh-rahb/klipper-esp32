@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# USB re-enumeration / reboot-recovery test for the Panda Breath MCU.
+# Linux USB re-enumeration / reboot-recovery test for the Panda Breath MCU.
 #
 # Uses the kernel USB "authorized" flag to force a genuine host-side
 # disconnect (the device is removed and its ttyUSB node disappears) and then a

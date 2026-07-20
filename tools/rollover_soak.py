@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 32-bit timer rollover soak for the Panda Breath MCU.
+# 32-bit timer rollover soak for the Panda Breath MCU on Linux.
 #
 # Holds a single continuous Klipper session (the board auto-resets on
 # port-open, so the session must NOT be reopened) and polls uptime until the

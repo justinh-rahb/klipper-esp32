@@ -7,7 +7,7 @@
 # lockout. Deliberately never drives GPIO3 (TRIAC/AC fan) and only drives
 # GPIO18 (heater relay) in the dedicated lockout test, which expects a shutdown.
 #
-# Reuses the low-level framing helpers from probe_mcu.py.
+# Reuses the low-level framing helpers from tools/probe_mcu.py.
 
 import argparse
 import json

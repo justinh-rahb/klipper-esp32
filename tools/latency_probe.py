@@ -9,7 +9,7 @@ reader. It timestamps the first response byte and the fully parsed reply
 independently, and runs a back-to-back burst so a single shared delay
 (pipeline latency) can be told apart from per-command firmware work.
 
-Reads are one-byte-first (see probe_mcu.read_packet): the read returns the
+Reads are one-byte-first (see tools/probe_mcu.py): the read returns the
 instant a reply byte arrives instead of waiting out a fixed-size/timeout read,
 so the measured RTT reflects the link, not the reader.
 """

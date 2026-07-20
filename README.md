@@ -24,10 +24,18 @@ and its Klipper fork.
 | `bentobox` | ESP32-C3 SuperMini BentoBox controller | Native USB Serial/JTAG | I2C, two hardware-PWM fans, GPIO8 NeoPixel |
 | `panda` | BIQU Panda Breath controller | UART0 through CH340K | Relay lockout and board-specific safety foundation |
 
-Example Klipper configuration lives in [`config/`](config/). Profile-specific
-ESP-IDF defaults live in [`profiles/`](profiles/) and chip defaults in
-[`targets/`](targets/). Product code is isolated in
-[`components/klipper/board_profiles/`](components/klipper/board_profiles/).
+## Repository layout
+
+| Path | Purpose |
+|---|---|
+| [`components/klipper/`](components/klipper/) | Shared ESP32-family MCU implementation and Klipper submodule |
+| [`components/klipper/board_profiles/`](components/klipper/board_profiles/) | Product-specific code, including the Panda Breath safety boundary |
+| [`profiles/`](profiles/) | Product and development-board build defaults |
+| [`targets/`](targets/) | ESP32, ESP32-C3, and ESP32-S3 chip defaults |
+| [`config/`](config/) | Example Klipper host configurations |
+| [`tools/`](tools/) | Dictionary validation, protocol probes, and hardware harnesses |
+| [`tests/`](tests/) | Host-side timer and PWM unit tests |
+| [`docs/`](docs/) | Hardware bring-up and validation reports |
 
 ## Validation status
 
@@ -122,7 +130,7 @@ identify handshake; it does not need to be copied to the host.
 
 ```sh
 idf.py -B build-esp32c3-dev -p /dev/cu.usbmodemXXXX flash
-python3 probe_mcu.py /dev/cu.usbmodemXXXX
+python3 tools/probe_mcu.py /dev/cu.usbmodemXXXX
 ```
 
 Some boards require manual ROM-loader entry: hold **BOOT**, tap **RESET**, then
@@ -140,7 +148,7 @@ then build, flash, and probe with:
 ```sh
 ./build.sh dev esp32s3
 idf.py -B build-esp32s3-dev -p /dev/cu.usbmodemXXXX flash
-python3 probe_mcu.py /dev/cu.usbmodemXXXX --neopixel-pin 48
+python3 tools/probe_mcu.py /dev/cu.usbmodemXXXX --neopixel-pin 48
 ```
 
 Start the host configuration from [`config/dev-s3.cfg`](config/dev-s3.cfg).
@@ -158,7 +166,7 @@ on macOS:
 ```sh
 ./build.sh dev esp32
 idf.py -B build-esp32-dev -p /dev/cu.usbserial-0001 flash
-python probe_mcu.py /dev/cu.usbserial-0001
+python3 tools/probe_mcu.py /dev/cu.usbserial-0001
 ```
 
 The target uses UART0 at 250000 baud: GPIO1 is TX and GPIO3 is RX. Start a
@@ -171,23 +179,23 @@ RMT implementation has target-specific hardware validation.
 
 ## Hardware test harnesses
 
-Beyond `probe_mcu.py`, these scripts exercise the MCU over the Klipper binary
-protocol. Each exits non-zero on failure so they can gate CI, and all take the
-serial device as their first argument (except `reconnect_test.py`, which
-auto-resolves the CH340 bridge):
+Beyond `tools/probe_mcu.py`, these scripts exercise the MCU over the Klipper binary
+protocol. Each exits non-zero on failure so it can gate CI. Most take the
+serial device as their first argument; `reconnect_test.py` auto-resolves the
+CH340 bridge, and `run_klippy_test.py` takes a Klipper configuration path:
 
 ```sh
-python3 hw_test.py /dev/ttyUSB0          # digital-out, ADC, and heater-relay lockout
-python3 latency_probe.py /dev/ttyUSB0    # true serial RTT + back-to-back burst timing
-python3 rollover_soak.py /dev/ttyUSB0     # ~71 min 32-bit timer rollover soak
-python3 reconnect_test.py                # USB re-enumeration / reboot recovery (needs sudo)
-python3 run_klippy_test.py config/dev-panda-klippy.cfg   # full real-Klippy host connection
+python3 tools/hw_test.py /dev/ttyUSB0          # digital-out, ADC, heater lockout
+python3 tools/latency_probe.py /dev/ttyUSB0    # serial RTT and burst timing
+python3 tools/rollover_soak.py /dev/ttyUSB0    # ~71 min timer rollover soak
+python3 tools/reconnect_test.py                # USB re-enumeration (needs sudo)
+python3 tools/run_klippy_test.py config/dev-panda-klippy.cfg  # real Klippy
 ```
 
-`latency_probe.py` reports first-byte and full-reply RTT plus a burst test that
+`tools/latency_probe.py` reports first-byte and full-reply RTT plus a burst test that
 distinguishes a shared pipeline (transport) delay from per-command work — it is
 the tool behind the CH340 latency findings in
-[`HARDWARE_BRINGUP.md`](HARDWARE_BRINGUP.md).
+[`docs/panda-breath-bringup.md`](docs/panda-breath-bringup.md).
 
 ## BentoBox profile
 
@@ -207,10 +215,15 @@ configuration, Fluidd/Mainsail-visible values, and fan G-code.
 ```sh
 sh tests/run_timer_math_test.sh
 sh tests/run_pwm_math_test.sh
-python3 -m py_compile probe_mcu.py validate_build.py
+python3 -m py_compile \
+    tools/probe_mcu.py tools/validate_build.py \
+    tools/hw_test.py tools/latency_probe.py tools/reconnect_test.py \
+    tools/rollover_soak.py tools/run_klippy_test.py \
+    components/klipper/concatenate_ctr.py \
+    components/klipper/extract_compile_time_requests.py
 ```
 
-The profile build itself also runs `validate_build.py` against the emitted MCU
+The profile build itself also runs `tools/validate_build.py` against the emitted MCU
 dictionary.
 
 ## Roadmap

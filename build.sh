@@ -48,7 +48,7 @@ IDF_TARGET="$target" SDKCONFIG_DEFAULTS="$defaults" idf.py -B "$build_dir" \
 IDF_TARGET="$target" SDKCONFIG_DEFAULTS="$defaults" idf.py -B "$build_dir" \
     -DSDKCONFIG="$sdkconfig" build
 
-python3 ./validate_build.py --profile "$profile" --target "$target" \
+python3 ./tools/validate_build.py --profile "$profile" --target "$target" \
     "$build_dir/esp-idf/klipper/klipper.dict"
 
 echo "firmware: $build_dir/${project_name}.bin"

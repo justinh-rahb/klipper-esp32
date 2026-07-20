@@ -17,7 +17,8 @@ import time
 import serial
 
 
-KLIPPER_KLIPPY = Path(__file__).parent / "components" / "klipper" / "klipper" / "klippy"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+KLIPPER_KLIPPY = REPO_ROOT / "components" / "klipper" / "klipper" / "klippy"
 sys.path.insert(0, str(KLIPPER_KLIPPY))
 import msgproto  # noqa: E402
 

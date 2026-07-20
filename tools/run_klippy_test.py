@@ -14,8 +14,8 @@ import sys
 import tempfile
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-KLIPPY = os.path.join(HERE, "components/klipper/klipper/klippy/klippy.py")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KLIPPY = os.path.join(REPO_ROOT, "components/klipper/klipper/klippy/klippy.py")
 VENV_PY = os.environ.get("KLIPPY_PYTHON", os.path.expanduser("~/klippy-env/bin/python"))
 if len(sys.argv) < 2:
     sys.exit("usage: run_klippy_test.py <klipper-config.cfg>")
