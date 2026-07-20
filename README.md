@@ -169,6 +169,26 @@ enabled by default because GPIO2 is also a boot-strapping pin and board layouts
 vary. The original ESP32 image deliberately omits NeoPixel commands until its
 RMT implementation has target-specific hardware validation.
 
+## Hardware test harnesses
+
+Beyond `probe_mcu.py`, these scripts exercise the MCU over the Klipper binary
+protocol. Each exits non-zero on failure so they can gate CI, and all take the
+serial device as their first argument (except `reconnect_test.py`, which
+auto-resolves the CH340 bridge):
+
+```sh
+python3 hw_test.py /dev/ttyUSB0          # digital-out, ADC, and heater-relay lockout
+python3 latency_probe.py /dev/ttyUSB0    # true serial RTT + back-to-back burst timing
+python3 rollover_soak.py /dev/ttyUSB0     # ~71 min 32-bit timer rollover soak
+python3 reconnect_test.py                # USB re-enumeration / reboot recovery (needs sudo)
+python3 run_klippy_test.py config/dev-panda-klippy.cfg   # full real-Klippy host connection
+```
+
+`latency_probe.py` reports first-byte and full-reply RTT plus a burst test that
+distinguishes a shared pipeline (transport) delay from per-command work — it is
+the tool behind the CH340 latency findings in
+[`HARDWARE_BRINGUP.md`](HARDWARE_BRINGUP.md).
+
 ## BentoBox profile
 
 The reference SuperMini wiring uses GPIO4/GPIO5 for a shared hardware I2C bus
