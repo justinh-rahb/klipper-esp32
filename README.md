@@ -233,6 +233,8 @@ Klipper command. See [`ROADMAP.md`](ROADMAP.md) for the planned input, counter,
 original ESP32 qualification, further ESP32-S3 validation, SPI, sensor, and
 experimental single-extruder work.
 
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/wildtang3nt)
+
 ## License
 
 GNU GPLv3. See [`LICENSE`](LICENSE). See [`AUTHORS.md`](AUTHORS.md) for project
